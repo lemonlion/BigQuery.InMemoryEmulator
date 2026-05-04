@@ -3172,16 +3172,34 @@ return partName switch
 "MICROSECOND" => (long)(dto.Millisecond * 1000 + dto.Microsecond),
 "DAYOFWEEK" => (long)(((int)dto.DayOfWeek) + 1),
 "DAYOFYEAR" => (long)dto.DayOfYear,
-"WEEK" => (long)CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(dto.DateTime, CalendarWeekRule.FirstDay, DayOfWeek.Sunday),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
+//   "WEEK: Returns the week number in range [0, 53]. Weeks begin with Sunday,
+//    and dates prior to the first Sunday of the year are in week 0."
+"WEEK" => ComputeWeekNumber(dto.DateTime, DayOfWeek.Sunday),
 "QUARTER" => (long)((dto.Month - 1) / 3 + 1),
 "DATE" => (object)DateOnly.FromDateTime(dto.Date),
 "TIME" => dto.TimeOfDay.ToString(),
-"ISOWEEK" => (long)CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(dto.DateTime, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
+//   "ISOWEEK: Returns the ISO 8601 week number of the date_expression."
+"ISOWEEK" => (long)System.Globalization.ISOWeek.GetWeekOfYear(dto.DateTime),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
 //   "ISOYEAR: Returns the ISO 8601 week-numbering year."
 "ISOYEAR" => (long)System.Globalization.ISOWeek.GetYear(dto.DateTime),
 _ => throw new NotSupportedException("Unsupported EXTRACT part: " + partName)
 };
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
+//   "WEEK: Returns the week number of the date in the range [0, 53].
+//    Weeks begin with [weekStart], and dates prior to the first [weekStart] of the year are in week 0."
+private static long ComputeWeekNumber(DateTime date, DayOfWeek weekStart)
+{
+	var jan1 = new DateTime(date.Year, 1, 1);
+	// Find the first occurrence of weekStart in the year
+	int daysUntilWeekStart = ((int)weekStart - (int)jan1.DayOfWeek + 7) % 7;
+	var firstWeekStart = jan1.AddDays(daysUntilWeekStart);
+	if (date < firstWeekStart) return 0L;
+	return (long)((date - firstWeekStart).Days / 7) + 1;
 }
 
 private object? EvaluateDateAdd(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3616,6 +3634,12 @@ private object? EvaluateDatetimeTrunc(IReadOnlyList<SqlExpression> args, RowCont
 		//   "MICROSECOND: Truncates to the microsecond boundary."
 		"MICROSECOND" => new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second)
 			.AddTicks((date.Millisecond * 1000L + date.Microsecond) * 10),
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_trunc
+		//   "ISOWEEK: Truncates datetime_expression to the preceding Monday."
+		"ISOWEEK" => date.Date.AddDays(-((int)date.DayOfWeek == 0 ? 6 : (int)date.DayOfWeek - 1)),
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_trunc
+		//   "ISOYEAR: Truncates to the start of the ISO year (Monday of ISO week 1)."
+		"ISOYEAR" => GetIsoYearStart(date),
 		_ => date.Date
 	};
 }
