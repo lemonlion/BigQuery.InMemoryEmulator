@@ -1384,17 +1384,39 @@ var navArgs = wf.Function is FunctionCall navFn ? navFn.Args : [];
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions#first_value
 //   "Returns the value of the value_expression for the first row in the current window frame."
+//   "If ignore_nulls is true, FIRST_VALUE excludes NULL values from the calculation."
 if (funcName == "FIRST_VALUE")
 {
 var framedPartition = GetFramedPartition(wf, partition, currentRow);
+bool ignoreNulls = navArgs.Count > 1 && navArgs[1] is LiteralExpr lit1 && lit1.Value as string == "__IGNORE_NULLS__";
+if (ignoreNulls)
+{
+    foreach (var r in framedPartition)
+    {
+        var val = Evaluate(navArgs[0], r);
+        if (val is not null) return val;
+    }
+    return null;
+}
 return Evaluate(navArgs[0], framedPartition[0]);
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions#last_value
 //   "Returns the value of the value_expression for the last row in the current window frame."
+//   "If ignore_nulls is true, LAST_VALUE excludes NULL values from the calculation."
 if (funcName == "LAST_VALUE")
 {
 var framedPartition = GetFramedPartition(wf, partition, currentRow);
+bool ignoreNulls = navArgs.Count > 1 && navArgs[1] is LiteralExpr lit2 && lit2.Value as string == "__IGNORE_NULLS__";
+if (ignoreNulls)
+{
+    for (int i = framedPartition.Count - 1; i >= 0; i--)
+    {
+        var val = Evaluate(navArgs[0], framedPartition[i]);
+        if (val is not null) return val;
+    }
+    return null;
+}
 return Evaluate(navArgs[0], framedPartition[^1]);
 }
 
@@ -3338,6 +3360,7 @@ var diff = ts1 - ts2;
 //   Boundary counting: truncate both timestamps to the given part, then compute the difference.
 return part switch
 {
+"NANOSECOND" => diff.Ticks * 100,
 "MICROSECOND" => diff.Ticks / 10,
 "MILLISECOND" => (long)diff.TotalMilliseconds,
 "SECOND" => (long)((TruncTimestamp(ts1, "SECOND") - TruncTimestamp(ts2, "SECOND")).TotalSeconds),
@@ -3404,10 +3427,31 @@ private object? EvaluateTimestampTrunc(IReadOnlyList<SqlExpression> args, RowCon
 {
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc
 //   "Returns NULL if timestamp_expression is NULL."
+//   "TIMESTAMP_TRUNC(timestamp_expression, date_time_part[, timezone])"
+//   "If time_zone is specified, the truncation is performed with respect to that time zone."
 var rawTs = Evaluate(args[0], row);
 if (rawTs is null) return null;
 var ts = ToDateTimeOffset(rawTs);
 var part = Evaluate(args[1], row)?.ToString()?.ToUpperInvariant() ?? "DAY";
+
+// Handle optional timezone parameter
+TimeZoneInfo? tz = null;
+if (args.Count > 2)
+{
+    var tzStr = Evaluate(args[2], row)?.ToString();
+    if (tzStr is not null)
+        tz = TimeZoneInfo.FindSystemTimeZoneById(tzStr);
+}
+
+// If timezone specified, convert to that timezone, truncate there, then convert back to UTC
+if (tz is not null)
+{
+    var localDt = TimeZoneInfo.ConvertTime(ts, tz);
+    var truncatedLocal = TruncTimestampLocal(localDt.DateTime, part);
+    var truncatedOffset = new DateTimeOffset(truncatedLocal, tz.GetUtcOffset(truncatedLocal));
+    return truncatedOffset.ToUniversalTime();
+}
+
 var offset = ts.Offset;
 return part switch
 {
@@ -3434,6 +3478,27 @@ return part switch
 "MICROSECOND" => new DateTimeOffset(ts.Year, ts.Month, ts.Day, ts.Hour, ts.Minute, ts.Second, offset)
 	.AddTicks(ts.Microsecond * TimeSpan.TicksPerMillisecond / 1000 + ts.Millisecond * TimeSpan.TicksPerMillisecond),
 _ => new DateTimeOffset(ts.Year, ts.Month, ts.Day, 0, 0, 0, offset)
+};
+}
+
+private static DateTime TruncTimestampLocal(DateTime dt, string part)
+{
+return part switch
+{
+"YEAR" => new DateTime(dt.Year, 1, 1),
+"QUARTER" => new DateTime(dt.Year, ((dt.Month - 1) / 3) * 3 + 1, 1),
+"MONTH" => new DateTime(dt.Year, dt.Month, 1),
+"WEEK" => dt.AddDays(-(int)dt.DayOfWeek).Date,
+"ISOWEEK" => dt.AddDays(-((int)dt.DayOfWeek == 0 ? 6 : (int)dt.DayOfWeek - 1)).Date,
+"DAY" => dt.Date,
+"HOUR" => new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, 0, 0),
+"MINUTE" => new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, 0),
+"SECOND" => new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second),
+"MILLISECOND" => new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second)
+    .AddTicks(dt.Millisecond * TimeSpan.TicksPerMillisecond),
+"MICROSECOND" => new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second)
+    .AddTicks(dt.Millisecond * TimeSpan.TicksPerMillisecond + (dt.Microsecond % 1000) * 10),
+_ => dt.Date
 };
 }
 

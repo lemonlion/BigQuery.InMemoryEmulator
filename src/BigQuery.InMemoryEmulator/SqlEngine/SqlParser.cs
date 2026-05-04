@@ -111,9 +111,15 @@ internal static class SqlParser
 		// Functions like DATE_DIFF(d1, d2, DAY) pass DAY as a bare keyword, which the parser
 		// treats as a column reference (evaluates to null). Convert to 'DAY'.
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions
+		// Pattern 1: date part as last argument before ')'
 		sql = Regex.Replace(sql,
-			@",\s*\b(MICROSECOND|MILLISECOND|SECOND|MINUTE|HOUR|DAY|DAYOFWEEK|DAYOFYEAR|WEEK|ISOWEEK|MONTH|QUARTER|YEAR|ISOYEAR|DATE|DATETIME)\s*\)",
+			@",\s*\b(NANOSECOND|MICROSECOND|MILLISECOND|SECOND|MINUTE|HOUR|DAY|DAYOFWEEK|DAYOFYEAR|WEEK|ISOWEEK|MONTH|QUARTER|YEAR|ISOYEAR|DATE|DATETIME)\s*\)",
 			", '$1')", RegexOptions.IgnoreCase);
+		// Pattern 2: date part as 2nd arg in TIMESTAMP_TRUNC/DATETIME_TRUNC with timezone (3-arg form)
+		// e.g. TIMESTAMP_TRUNC(ts, MONTH, 'America/Los_Angeles') → TIMESTAMP_TRUNC(ts, 'MONTH', 'America/Los_Angeles')
+		sql = Regex.Replace(sql,
+			@"\b(TIMESTAMP_TRUNC|DATETIME_TRUNC)\s*\(([^,]+),\s*\b(NANOSECOND|MICROSECOND|MILLISECOND|SECOND|MINUTE|HOUR|DAY|DAYOFWEEK|DAYOFYEAR|WEEK|ISOWEEK|MONTH|QUARTER|YEAR|ISOYEAR|DATE|DATETIME)\b\s*,",
+			"$1($2, '$3',", RegexOptions.IgnoreCase);
 
 		// Named WINDOW clause: WINDOW w AS (...) - expand OVER w references inline
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/window-function-calls#named_window
