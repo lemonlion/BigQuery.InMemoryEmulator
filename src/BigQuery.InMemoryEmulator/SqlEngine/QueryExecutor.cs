@@ -3428,7 +3428,10 @@ return DateTimeOffset.FromUnixTimeMilliseconds(millis);
 private object? EvaluateTimestampMicros(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var micros = ToLong(Evaluate(args[0], row));
-return DateTimeOffset.FromUnixTimeMilliseconds(micros / 1000);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_micros
+//   "Interprets int64_expression as the number of microseconds since 1970-01-01 00:00:00 UTC."
+// Must preserve sub-millisecond precision (1 microsecond = 10 ticks).
+return DateTimeOffset.UnixEpoch.AddTicks(micros * 10);
 }
 
 private object? EvaluateUnixMillis(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3547,6 +3550,13 @@ private object? EvaluateDatetimeTrunc(IReadOnlyList<SqlExpression> args, RowCont
 		"HOUR" => new DateTime(date.Year, date.Month, date.Day, date.Hour, 0, 0),
 		"MINUTE" => new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, 0),
 		"SECOND" => new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second),
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_trunc
+		//   "MILLISECOND: Truncates to the millisecond boundary."
+		"MILLISECOND" => new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second)
+			.AddTicks(date.Millisecond * TimeSpan.TicksPerMillisecond),
+		//   "MICROSECOND: Truncates to the microsecond boundary."
+		"MICROSECOND" => new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second)
+			.AddTicks((date.Millisecond * 1000L + date.Microsecond) * 10),
 		_ => date.Date
 	};
 }
@@ -3733,6 +3743,7 @@ private object? EvaluateParseTime(IReadOnlyList<SqlExpression> args, RowContext 
 
 private static DateTime AddToPart(DateTime date, long interval, string part)
 {
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_add
 return part switch
 {
 "DAY" => date.AddDays(interval),
@@ -3743,6 +3754,8 @@ return part switch
 "HOUR" => date.AddHours(interval),
 "MINUTE" => date.AddMinutes(interval),
 "SECOND" => date.AddSeconds(interval),
+"MILLISECOND" => date.AddTicks(interval * TimeSpan.TicksPerMillisecond),
+"MICROSECOND" => date.AddTicks(interval * 10),
 _ => date.AddDays(interval)
 };
 }
@@ -7237,7 +7250,7 @@ return type?.ToUpperInvariant() switch
 	"BOOLEAN" or "BOOL" => s.Equals("true", StringComparison.OrdinalIgnoreCase) ? true
 		: s.Equals("false", StringComparison.OrdinalIgnoreCase) ? false : val,
 	"TIMESTAMP" => long.TryParse(s, CultureInfo.InvariantCulture, out var us)
-		? DateTimeOffset.FromUnixTimeMilliseconds(us / 1000) : val,
+		? DateTimeOffset.UnixEpoch.AddTicks(us * 10) : val,
 	"DATE" => DateTime.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture,
 		System.Globalization.DateTimeStyles.None, out var dt) ? DateOnly.FromDateTime(dt) : val,
 	_ => val
@@ -7712,7 +7725,9 @@ bool b => b ? "true" : "false",
             double d => d.ToString(CultureInfo.InvariantCulture),
 DateTimeOffset dto => FormatTimestampAsString(dto),
 DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-DateTime dt => dt.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
+DateTime dt => dt.TimeOfDay.Ticks % TimeSpan.TicksPerSecond != 0
+	? dt.ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff", CultureInfo.InvariantCulture)
+	: dt.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
 TimeSpan ts => ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture),
 _ => val.ToString()
 };
