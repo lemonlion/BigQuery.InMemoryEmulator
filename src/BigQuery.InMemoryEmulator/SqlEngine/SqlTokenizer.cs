@@ -114,10 +114,15 @@ internal static class SqlTokenizer
 					.Or(Character.Except('"')).Many())
 				.Then(_ => Character.EqualTo('"'))
 		), SqlToken.StringLiteral)
-		// Numbers (integers and decimals)
+		// Numbers (integers, decimals, and scientific notation e.g. 1e19, 1.5e-3)
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#floating_point_literals
 		.Match(Span.MatchedBy(
 			Character.Digit.AtLeastOnce()
 				.Then(_ => Character.EqualTo('.').IgnoreThen(Character.Digit.AtLeastOnce()).Select(c => (char[]?)c).OptionalOrDefault())
+				.Then(_ => Character.In('e', 'E')
+					.IgnoreThen(Character.In('+', '-').OptionalOrDefault())
+					.IgnoreThen(Character.Digit.AtLeastOnce())
+					.Select(c => (char[]?)c).OptionalOrDefault())
 		), SqlToken.Number)
 		// Identifiers and keywords (case-insensitive keywords resolved later)
 		.Match(Span.MatchedBy(

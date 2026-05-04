@@ -4352,50 +4352,57 @@ private object? EvaluateArrayTransform(IReadOnlyList<SqlExpression> rawArgs, Row
 
 private object? EvaluateMd5(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var val = Evaluate(args[0], row)?.ToString();
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions#md5
+//   "The input can either be STRING or BYTES."
+var val = Evaluate(args[0], row);
 if (val is null) return null;
-var bytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(val));
-return bytes;
+var input = val is byte[] b ? b : System.Text.Encoding.UTF8.GetBytes(val.ToString()!);
+return System.Security.Cryptography.MD5.HashData(input);
 }
 
 private object? EvaluateSha256(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var val = Evaluate(args[0], row)?.ToString();
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions#sha256
+//   "The input can either be STRING or BYTES."
+var val = Evaluate(args[0], row);
 if (val is null) return null;
-var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(val));
-return bytes;
+var input = val is byte[] b ? b : System.Text.Encoding.UTF8.GetBytes(val.ToString()!);
+return System.Security.Cryptography.SHA256.HashData(input);
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions#sha1
-//   "Computes the hash of the input using the SHA-1 algorithm. Returns 20 bytes."
+//   "The input can either be STRING or BYTES. Returns 20 bytes."
 private object? EvaluateSha1(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var val = Evaluate(args[0], row)?.ToString();
+var val = Evaluate(args[0], row);
 if (val is null) return null;
-return System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes(val));
+var input = val is byte[] b ? b : System.Text.Encoding.UTF8.GetBytes(val.ToString()!);
+return System.Security.Cryptography.SHA1.HashData(input);
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions#sha512
-//   "Computes the hash of the input using the SHA-512 algorithm. Returns 64 bytes."
+//   "The input can either be STRING or BYTES. Returns 64 bytes."
 private object? EvaluateSha512(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var val = Evaluate(args[0], row)?.ToString();
+var val = Evaluate(args[0], row);
 if (val is null) return null;
-return System.Security.Cryptography.SHA512.HashData(System.Text.Encoding.UTF8.GetBytes(val));
+var input = val is byte[] b ? b : System.Text.Encoding.UTF8.GetBytes(val.ToString()!);
+return System.Security.Cryptography.SHA512.HashData(input);
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions#farm_fingerprint
 //   "Computes the fingerprint using the FarmHash Fingerprint64 algorithm. Returns INT64."
 private object? EvaluateFarmFingerprint(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var val = Evaluate(args[0], row)?.ToString();
+var val = Evaluate(args[0], row);
 if (val is null) return null;
 // Approximate FarmHash Fingerprint64 using a stable hash (FNV-1a 64-bit)
 // This is not exact FarmHash but provides deterministic INT64 output.
+var inputBytes = val is byte[] b ? b : System.Text.Encoding.UTF8.GetBytes(val.ToString()!);
 ulong hash = 14695981039346656037;
-foreach (var b in System.Text.Encoding.UTF8.GetBytes(val))
+foreach (var by in inputBytes)
 {
-    hash ^= b;
+    hash ^= by;
     hash *= 1099511628211;
 }
 return unchecked((long)hash);
@@ -6239,8 +6246,12 @@ if (funcName == "COUNT" && agg.Arg is StarExpr)
 
 var values = rows.Select(r => Evaluate(agg.Arg!, r)).ToList();
 
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_agg
+//   "DISTINCT: Each distinct value of expression is aggregated only once into the result."
+//   NULLs are treated as equal for DISTINCT purposes (one NULL preserved).
+//   Individual functions (COUNT, SUM, etc.) already filter NULLs internally.
 if (agg.Distinct)
-values = values.Where(v => v is not null).Distinct().ToList();
+values = values.Distinct().ToList();
 
 return funcName switch
 {
@@ -7386,7 +7397,11 @@ long l => l.ToString(),
 double d when double.IsPositiveInfinity(d) => "Infinity",
 double d when double.IsNegativeInfinity(d) => "-Infinity",
 double d when double.IsNaN(d) => "NaN",
-            double d => d == Math.Floor(d) ? ((long)d).ToString() : d.ToString(CultureInfo.InvariantCulture),
+            // Ref: https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
+            //   FLOAT64 integer-valued doubles are returned without decimal point when they fit in Int64 range.
+            double d => d == Math.Floor(d) && d >= long.MinValue && d <= long.MaxValue
+                ? ((long)d).ToString()
+                : d.ToString(CultureInfo.InvariantCulture),
             // Ref: https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
 //   The BigQuery .NET SDK (v3.11.0) defaults to UseInt64Timestamp=true, which calls
 //   long.Parse() on timestamp values. We must return epoch MICROSECONDS as an integer string.
