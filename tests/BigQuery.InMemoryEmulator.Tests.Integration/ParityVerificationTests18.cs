@@ -101,9 +101,14 @@ public class ParityVerificationTests18 : IAsyncLifetime
 
 	[Fact] public async Task Repeat_NegativeCount()
 	{
-		// BigQuery returns NULL for negative count
-		var result = await S("SELECT REPEAT('abc', -1)");
-		Assert.Null(result);
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#repeat
+		//   "This function returns an error if the repetitions value is negative."
+		var client = await _fixture.GetClientAsync();
+		await Assert.ThrowsAnyAsync<Exception>(async () =>
+		{
+			var result = await client.ExecuteQueryAsync("SELECT REPEAT('abc', -1)", parameters: null);
+			_ = result.ToList();
+		});
 	}
 
 	[Fact] public async Task Repeat_Normal()

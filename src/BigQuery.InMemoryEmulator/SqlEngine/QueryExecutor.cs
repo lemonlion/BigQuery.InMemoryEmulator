@@ -2654,6 +2654,9 @@ if (startIdx >= str.Length) return "";
 if (args.Count > 2)
 {
 var len = (int)ToLong(Evaluate(args[2], row));
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#substr
+//   "If length is negative, the function produces an error."
+if (len < 0) throw new InvalidOperationException("SUBSTR: negative length not allowed");
 return str.Substring(startIdx, Math.Min(len, str.Length - startIdx));
 }
 return str[startIdx..];
@@ -2749,8 +2752,8 @@ var rawCount = Evaluate(args[1], row);
 if (rawCount is null) return null;
 var count = (int)ToLong(rawCount);
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#repeat
-//   "If count is negative, the function returns NULL."
-if (count < 0) return null;
+//   "This function returns an error if the repetitions value is negative."
+if (count < 0) throw new InvalidOperationException("REPEAT: negative repetitions not allowed");
 return string.Concat(Enumerable.Repeat(str, count));
 }
 
@@ -3020,7 +3023,11 @@ var a = Evaluate(args[0], row);
 var b = Evaluate(args[1], row);
 if (a is null || b is null) return null;
 if (a is long la && b is long lb) return lb == 0 ? throw new DivideByZeroException() : la % lb;
-return ToDouble(a) % ToDouble(b);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#mod
+//   "Generates a division by zero error if Y is 0."
+var db = ToDouble(b);
+if (db == 0.0) throw new DivideByZeroException();
+return ToDouble(a) % db;
 }
 
 private object? EvaluatePow(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3080,10 +3087,17 @@ private object? EvaluateIntDiv(IReadOnlyList<SqlExpression> args, RowContext row
 var a = Evaluate(args[0], row);
 var b = Evaluate(args[1], row);
 if (a is null || b is null) return null;
-var la = ToLong(a);
-var lb = ToLong(b);
-if (lb == 0) throw new DivideByZeroException();
-return la / lb;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#div
+//   "Division of X by Y, rounded toward zero to the nearest integer."
+if (a is long la && b is long lb)
+{
+    if (lb == 0) throw new DivideByZeroException();
+    return la / lb;
+}
+var da = ToDouble(a);
+var db = ToDouble(b);
+if (db == 0.0) throw new DivideByZeroException();
+return (long)Math.Truncate(da / db);
 }
 
 #endregion
@@ -4463,14 +4477,15 @@ try
 using var doc = System.Text.Json.JsonDocument.Parse(json);
 var element = NavigateJsonPath(doc.RootElement, path);
 if (element is null) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#json_extract_scalar
+//   "If the selected JSON value is not a scalar... returns NULL."
 return element.Value.ValueKind switch
 {
 System.Text.Json.JsonValueKind.String => element.Value.GetString(),
 System.Text.Json.JsonValueKind.Number => element.Value.GetRawText(),
 System.Text.Json.JsonValueKind.True => "true",
 System.Text.Json.JsonValueKind.False => "false",
-System.Text.Json.JsonValueKind.Null => null,
-_ => element.Value.GetRawText()
+_ => null
 };
 }
 catch { return null; }
