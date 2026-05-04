@@ -1422,33 +1422,83 @@ return Evaluate(navArgs[0], framedPartition[^1]);
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions#lag
 //   "Returns the value of the value_expression on a preceding row."
+//   "If ignore_nulls is true, excludes NULL values from the calculation."
 if (funcName == "LAG")
 {
-int offset = navArgs.Count > 1 ? (int)ToLong(Evaluate(navArgs[1], currentRow)) : 1;
-object? defaultVal = navArgs.Count > 2 ? Evaluate(navArgs[2], currentRow) : null;
+bool ignoreNulls = HasIgnoreNullsMarker(navArgs);
+var effectiveArgs = FilterIgnoreNullsMarker(navArgs);
+int offset = effectiveArgs.Count > 1 ? (int)ToLong(Evaluate(effectiveArgs[1], currentRow)) : 1;
+object? defaultVal = effectiveArgs.Count > 2 ? Evaluate(effectiveArgs[2], currentRow) : null;
 var idx = partition.IndexOf(currentRow);
+if (ignoreNulls)
+{
+    int found = 0;
+    for (int i = idx - 1; i >= 0; i--)
+    {
+        var val = Evaluate(navArgs[0], partition[i]);
+        if (val is not null)
+        {
+            found++;
+            if (found == offset) return val;
+        }
+    }
+    return defaultVal;
+}
 int targetIdx = idx - offset;
 return targetIdx >= 0 ? Evaluate(navArgs[0], partition[targetIdx]) : defaultVal;
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions#lead
 //   "Returns the value of the value_expression on a subsequent row."
+//   "If ignore_nulls is true, excludes NULL values from the calculation."
 if (funcName == "LEAD")
 {
-int offset = navArgs.Count > 1 ? (int)ToLong(Evaluate(navArgs[1], currentRow)) : 1;
-object? defaultVal = navArgs.Count > 2 ? Evaluate(navArgs[2], currentRow) : null;
+bool ignoreNulls = HasIgnoreNullsMarker(navArgs);
+var effectiveArgs = FilterIgnoreNullsMarker(navArgs);
+int offset = effectiveArgs.Count > 1 ? (int)ToLong(Evaluate(effectiveArgs[1], currentRow)) : 1;
+object? defaultVal = effectiveArgs.Count > 2 ? Evaluate(effectiveArgs[2], currentRow) : null;
 var idx = partition.IndexOf(currentRow);
+if (ignoreNulls)
+{
+    int found = 0;
+    for (int i = idx + 1; i < partition.Count; i++)
+    {
+        var val = Evaluate(navArgs[0], partition[i]);
+        if (val is not null)
+        {
+            found++;
+            if (found == offset) return val;
+        }
+    }
+    return defaultVal;
+}
 int targetIdx = idx + offset;
 return targetIdx < partition.Count ? Evaluate(navArgs[0], partition[targetIdx]) : defaultVal;
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions#nth_value
 //   "Returns the value of value_expression at the Nth row of the current window frame."
+//   "If ignore_nulls is true, excludes NULL values from the calculation."
 if (funcName == "NTH_VALUE")
 {
 int n = navArgs.Count > 1 ? (int)ToLong(Evaluate(navArgs[1], currentRow)) : 1;
 if (n <= 0) throw new InvalidOperationException("NTH_VALUE requires a positive integer for N");
 var framedPartition = GetFramedPartition(wf, partition, currentRow);
+bool ignoreNulls = navArgs.Count > 2 && navArgs[2] is LiteralExpr litN && litN.Value as string == "__IGNORE_NULLS__";
+if (ignoreNulls)
+{
+    int found = 0;
+    foreach (var r in framedPartition)
+    {
+        var val = Evaluate(navArgs[0], r);
+        if (val is not null)
+        {
+            found++;
+            if (found == n) return val;
+        }
+    }
+    return null;
+}
 return n <= framedPartition.Count ? Evaluate(navArgs[0], framedPartition[n - 1]) : null;
 }
 
@@ -6422,6 +6472,22 @@ private static bool HasIgnoreNullsMarker(AggregateCall agg)
     return agg.ExtraArgs.Any(a => a is LiteralExpr { Value: "__IGNORE_NULLS__" });
 }
 
+/// <summary>
+/// Checks if a navigation function argument list contains the '__IGNORE_NULLS__' marker.
+/// </summary>
+private static bool HasIgnoreNullsMarker(IReadOnlyList<SqlExpression> args)
+{
+    return args.Any(a => a is LiteralExpr { Value: "__IGNORE_NULLS__" });
+}
+
+/// <summary>
+/// Returns the argument list with the '__IGNORE_NULLS__' marker removed.
+/// </summary>
+private static IReadOnlyList<SqlExpression> FilterIgnoreNullsMarker(IReadOnlyList<SqlExpression> args)
+{
+    return args.Where(a => a is not LiteralExpr { Value: "__IGNORE_NULLS__" }).ToList();
+}
+
 private object? EvaluateStringAgg(AggregateCall agg, List<RowContext> rows)
 {
     // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#string_agg
@@ -6449,32 +6515,34 @@ private object? EvaluateStringAgg(AggregateCall agg, List<RowContext> rows)
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#logical_and
-//   "Returns TRUE if all non-NULL values are TRUE. Returns NULL if all values are NULL."
-//   Three-valued logic: if any value is FALSE → FALSE; if any value is NULL (with no FALSE) → NULL; else TRUE.
+//   "Returns the logical AND of all non-NULL expressions."
+//   "Returns NULL if there are zero input rows or expression evaluates to NULL for all rows."
 private static object? EvaluateLogicalAnd(List<object?> values)
 {
-    bool hasNull = false;
+    bool hasNonNull = false;
     foreach (var v in values)
     {
-        if (v is null) { hasNull = true; continue; }
+        if (v is null) continue;
+        hasNonNull = true;
         if (v is false) return false;
     }
-    if (values.Count == 0 || hasNull) return null;
+    if (!hasNonNull) return null;
     return true;
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#logical_or
-//   "Returns TRUE if at least one non-NULL value is TRUE. Returns NULL if all values are NULL."
-//   Three-valued logic: if any value is TRUE → TRUE; if any value is NULL (with no TRUE) → NULL; else FALSE.
+//   "Returns the logical OR of all non-NULL expressions."
+//   "Returns NULL if there are zero input rows or expression evaluates to NULL for all rows."
 private static object? EvaluateLogicalOr(List<object?> values)
 {
-    bool hasNull = false;
+    bool hasNonNull = false;
     foreach (var v in values)
     {
-        if (v is null) { hasNull = true; continue; }
+        if (v is null) continue;
+        hasNonNull = true;
         if (v is true) return true;
     }
-    if (values.Count == 0 || hasNull) return null;
+    if (!hasNonNull) return null;
     return false;
 }
 

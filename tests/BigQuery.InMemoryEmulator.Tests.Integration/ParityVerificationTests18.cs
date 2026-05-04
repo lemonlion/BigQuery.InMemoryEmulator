@@ -259,9 +259,11 @@ public class ParityVerificationTests18 : IAsyncLifetime
 
 	[Fact] public async Task LogicalAnd_NullAndTrue()
 	{
-		// NULL AND TRUE → NULL (three-valued: could be true or false)
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#logical_and
+		//   "Returns the logical AND of all non-NULL expressions."
+		//   NULLs are ignored; all non-null values are TRUE → TRUE
 		var result = await S("SELECT LOGICAL_AND(x) FROM UNNEST([true, CAST(NULL AS BOOL)]) AS x");
-		Assert.Null(result);
+		Assert.Equal("True", result);
 	}
 
 	[Fact] public async Task LogicalAnd_NullAndFalse()
@@ -291,9 +293,11 @@ public class ParityVerificationTests18 : IAsyncLifetime
 
 	[Fact] public async Task LogicalOr_NullAndFalse()
 	{
-		// NULL OR FALSE → NULL (could be true or false)
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#logical_or
+		//   "Returns the logical OR of all non-NULL expressions."
+		//   NULLs are ignored; no non-null value is TRUE → FALSE
 		var result = await S("SELECT LOGICAL_OR(x) FROM UNNEST([false, CAST(NULL AS BOOL)]) AS x");
-		Assert.Null(result);
+		Assert.Equal("False", result);
 	}
 
 	[Fact] public async Task LogicalOr_NullAndTrue()
