@@ -3147,7 +3147,9 @@ return partName switch
 "MINUTE" => (long)dto.Minute,
 "SECOND" => (long)dto.Second,
 "MILLISECOND" => (long)dto.Millisecond,
-"MICROSECOND" => (long)(dto.Millisecond * 1000),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#extract
+//   "MICROSECOND: Returns the number of microseconds in the current second."
+"MICROSECOND" => (long)(dto.Millisecond * 1000 + dto.Microsecond),
 "DAYOFWEEK" => (long)(((int)dto.DayOfWeek) + 1),
 "DAYOFYEAR" => (long)dto.DayOfYear,
 "WEEK" => (long)CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(dto.DateTime, CalendarWeekRule.FirstDay, DayOfWeek.Sunday),
@@ -7282,7 +7284,7 @@ double d when double.IsNaN(d) => "NaN",
 //   The BigQuery .NET SDK (v3.11.0) defaults to UseInt64Timestamp=true, which calls
 //   long.Parse() on timestamp values. We must return epoch MICROSECONDS as an integer string.
 //   SDK source: BigQueryResults.ConvertResponseRows â†’ BigQueryRow â†’ Int64TimestampConverter.
-DateTimeOffset dto => (dto.ToUnixTimeMilliseconds() * 1000L).ToString(CultureInfo.InvariantCulture),
+DateTimeOffset dto => ((dto - DateTimeOffset.UnixEpoch).Ticks / 10).ToString(CultureInfo.InvariantCulture),
 // Ref: https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
 //   DATE values are returned as "yyyy-MM-dd" strings.
 DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
