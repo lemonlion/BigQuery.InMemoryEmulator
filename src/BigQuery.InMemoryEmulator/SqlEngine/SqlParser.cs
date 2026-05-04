@@ -68,13 +68,28 @@ internal static class SqlParser
 
 		// Byte literal: b'...' or B'...' → '...' (emulator treats bytes as strings)
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#byte_literals
-		// Require the b prefix to be preceded by whitespace, comma, open paren, or start of string
-		sql = Regex.Replace(sql, @"(?<=^|[\s,=(])[bB]'", "'");
+		// Require the b prefix to be preceded by whitespace, comma, open paren, or start of string.
+		// Use a MatchEvaluator to skip matches inside string literals (odd quote parity = inside string).
+		sql = Regex.Replace(sql, @"(?<=^|[\s,=(])[bB]'", m =>
+		{
+			int quoteCount = 0;
+			for (int i = 0; i < m.Index; i++)
+				if (sql[i] == '\'') quoteCount++;
+			return quoteCount % 2 == 0 ? "'" : m.Value;
+		});
 
 		// Raw string literal: r'...' or R'...' → '...' with backslashes doubled
 		// (raw strings don't process escape sequences, but the tokenizer does, so double them)
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#string_and_bytes_literals
-		sql = Regex.Replace(sql, @"(?<=^|[\s,=(])[rR]'([^']*)'", m => "'" + m.Groups[1].Value.Replace("\\", "\\\\") + "'");
+		// Use a MatchEvaluator to skip matches inside string literals (odd quote parity = inside string).
+		sql = Regex.Replace(sql, @"(?<=^|[\s,=(])[rR]'([^']*)'", m =>
+		{
+			int quoteCount = 0;
+			for (int i = 0; i < m.Index; i++)
+				if (sql[i] == '\'') quoteCount++;
+			if (quoteCount % 2 != 0) return m.Value;
+			return "'" + m.Groups[1].Value.Replace("\\", "\\\\") + "'";
+		});
 
 		// JSON 'string' → PARSE_JSON('string')
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#json_literals
