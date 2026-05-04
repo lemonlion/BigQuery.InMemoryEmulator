@@ -1987,7 +1987,9 @@ long l => (double)l,
 string s when s.Equals("inf", StringComparison.OrdinalIgnoreCase) => double.PositiveInfinity,
 string s when s.Equals("-inf", StringComparison.OrdinalIgnoreCase) => double.NegativeInfinity,
 string s when s.Equals("nan", StringComparison.OrdinalIgnoreCase) => double.NaN,
-string s => double.Parse(s, CultureInfo.InvariantCulture),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_float64
+//   "SAFE_CAST returns NULL if the value overflows FLOAT64 range."
+string s => ParseStringToFloat64(s),
 _ => Convert.ToDouble(val, CultureInfo.InvariantCulture)
 },
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
@@ -2051,6 +2053,18 @@ catch when (isSafe)
 {
 return null;
 }
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_float64
+//   "If the value overflows, the function raises an error (or NULL for SAFE_CAST)."
+private static double ParseStringToFloat64(string s)
+{
+    var d = double.Parse(s, CultureInfo.InvariantCulture);
+    // double.Parse returns Infinity for values like "1e400" without throwing.
+    // BigQuery treats these as overflow errors, not valid Infinity values.
+    if (double.IsInfinity(d) || double.IsNaN(d))
+        throw new OverflowException($"Cannot cast '{s}' to FLOAT64: value out of range");
+    return d;
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#timestamp_literals
@@ -3341,6 +3355,22 @@ var tsVal = Evaluate(args[1], row);
 //   "Returns NULL if any argument is NULL."
 if (tsVal is null) return null;
 var ts = ToDateTimeOffset(tsVal);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#format_timestamp
+//   "FORMAT_TIMESTAMP(format_string, timestamp[, timezone])"
+//   When timezone is provided, convert the timestamp to that timezone before formatting.
+if (args.Count > 2)
+{
+    var tzStr = Evaluate(args[2], row)?.ToString();
+    if (tzStr is not null)
+    {
+        try
+        {
+            var tz = TimeZoneInfo.FindSystemTimeZoneById(tzStr);
+            ts = TimeZoneInfo.ConvertTime(ts, tz);
+        }
+        catch (TimeZoneNotFoundException) { /* Use UTC if tz not found */ }
+    }
+}
 return FormatTimestamp(ts, format);
 }
 
