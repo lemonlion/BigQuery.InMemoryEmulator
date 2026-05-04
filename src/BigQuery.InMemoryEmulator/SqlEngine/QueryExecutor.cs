@@ -1848,7 +1848,9 @@ foreach (var v in inExpr.Values)
 {
 	var item = Evaluate(v, row);
 	if (item is null) { hasNull = true; continue; }
-	if (Equals(val, item)) return true;
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#in_operators
+	//   Use CompareRaw for numeric type coercion (INT64 vs FLOAT64).
+	if (CompareRaw(val, item) == 0) return true;
 }
 return hasNull ? null : false;
 }
@@ -2687,6 +2689,9 @@ var len = (int)ToLong(rawLen);
 var pad = args.Count > 2 ? Evaluate(args[2], row)?.ToString() : " ";
 if (pad is null) return null;
 if (str.Length >= len) return str[..len];
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#lpad
+    //   "If fill_string is empty, returns original_value truncated to length."
+    if (pad.Length == 0) return str[..Math.Min(str.Length, len)];
 while (str.Length < len) str = pad + str;
 return str[..len];
 }
@@ -2704,6 +2709,9 @@ var len = (int)ToLong(rawLen);
 var pad = args.Count > 2 ? Evaluate(args[2], row)?.ToString() : " ";
 if (pad is null) return null;
 if (str.Length >= len) return str[..len];
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#rpad
+    //   "If fill_string is empty, returns original_value truncated to length."
+    if (pad.Length == 0) return str[..Math.Min(str.Length, len)];
 while (str.Length < len) str = str + pad;
 return str[..len];
 }
@@ -2721,7 +2729,12 @@ private object? EvaluateRepeat(IReadOnlyList<SqlExpression> args, RowContext row
 {
 var str = Evaluate(args[0], row)?.ToString();
 if (str is null) return null;
-var count = (int)ToLong(Evaluate(args[1], row));
+var rawCount = Evaluate(args[1], row);
+if (rawCount is null) return null;
+var count = (int)ToLong(rawCount);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#repeat
+//   "If count is negative, the function returns NULL."
+if (count < 0) return null;
 return string.Concat(Enumerable.Repeat(str, count));
 }
 
@@ -3837,11 +3850,15 @@ return null;
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#generate_array
 //   "GENERATE_ARRAY generates an array of values. Supports INT64 and FLOAT64 types."
+//   "If any argument is NULL, returns NULL."
 private object? EvaluateGenerateArray(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var rawStart = Evaluate(args[0], row);
 var rawEnd = Evaluate(args[1], row);
 var rawStep = args.Count > 2 ? Evaluate(args[2], row) : null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#generate_array
+//   "If any argument is NULL, the function returns NULL."
+if (rawStart is null || rawEnd is null || (args.Count > 2 && rawStep is null)) return null;
 // Use floating point if any arg is a double
 if (rawStart is double || rawEnd is double || rawStep is double)
 {
@@ -6097,8 +6114,8 @@ return funcName switch
 	.ToList(),
 "COUNTIF" => (long)rows.Count(r => IsTruthy(Evaluate(agg.Arg!, r))),
 "APPROX_COUNT_DISTINCT" => (long)values.Where(v => v is not null).Distinct().Count(),
-"LOGICAL_AND" => values.All(v => v is true),
-"LOGICAL_OR" => values.Any(v => v is true),
+"LOGICAL_AND" => EvaluateLogicalAnd(values),
+"LOGICAL_OR" => EvaluateLogicalOr(values),
 // Bitwise aggregates
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#bit_and
 //   "Performs a bitwise AND operation on expression and returns the result."
@@ -6182,7 +6199,40 @@ private object? EvaluateStringAgg(AggregateCall agg, List<RowContext> rows)
         var ordered = OrderBy(paired.Select(p => p.Row).ToList(), agg.AggOrderBy);
         values = ordered.Select(r => Evaluate(agg.Arg!, r)?.ToString()).Where(v => v is not null).ToList()!;
     }
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#string_agg
+    //   "Returns NULL if there are zero input rows or expression evaluates to NULL for all rows."
+    if (values.Count == 0) return null;
     return string.Join(separator, values);
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#logical_and
+//   "Returns TRUE if all non-NULL values are TRUE. Returns NULL if all values are NULL."
+//   Three-valued logic: if any value is FALSE → FALSE; if any value is NULL (with no FALSE) → NULL; else TRUE.
+private static object? EvaluateLogicalAnd(List<object?> values)
+{
+    bool hasNull = false;
+    foreach (var v in values)
+    {
+        if (v is null) { hasNull = true; continue; }
+        if (v is false) return false;
+    }
+    if (values.Count == 0 || hasNull) return null;
+    return true;
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#logical_or
+//   "Returns TRUE if at least one non-NULL value is TRUE. Returns NULL if all values are NULL."
+//   Three-valued logic: if any value is TRUE → TRUE; if any value is NULL (with no TRUE) → NULL; else FALSE.
+private static object? EvaluateLogicalOr(List<object?> values)
+{
+    bool hasNull = false;
+    foreach (var v in values)
+    {
+        if (v is null) { hasNull = true; continue; }
+        if (v is true) return true;
+    }
+    if (values.Count == 0 || hasNull) return null;
+    return false;
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions#var_samp
