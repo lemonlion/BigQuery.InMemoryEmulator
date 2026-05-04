@@ -2702,10 +2702,11 @@ if (rawLen is null) return null;
 var len = (int)ToLong(rawLen);
 var pad = args.Count > 2 ? Evaluate(args[2], row)?.ToString() : " ";
 if (pad is null) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#lpad
+//   "This function returns an error if: return_length is negative; pattern is empty."
+if (len < 0) throw new InvalidOperationException("LPAD: return_length must not be negative");
+if (pad.Length == 0) throw new InvalidOperationException("LPAD: pattern must not be empty");
 if (str.Length >= len) return str[..len];
-    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#lpad
-    //   "If fill_string is empty, returns original_value truncated to length."
-    if (pad.Length == 0) return str[..Math.Min(str.Length, len)];
 while (str.Length < len) str = pad + str;
 return str[..len];
 }
@@ -2722,10 +2723,11 @@ if (rawLen is null) return null;
 var len = (int)ToLong(rawLen);
 var pad = args.Count > 2 ? Evaluate(args[2], row)?.ToString() : " ";
 if (pad is null) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#rpad
+//   "This function returns an error if: return_length is negative; pattern is empty."
+if (len < 0) throw new InvalidOperationException("RPAD: return_length must not be negative");
+if (pad.Length == 0) throw new InvalidOperationException("RPAD: pattern must not be empty");
 if (str.Length >= len) return str[..len];
-    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#rpad
-    //   "If fill_string is empty, returns original_value truncated to length."
-    if (pad.Length == 0) return str[..Math.Min(str.Length, len)];
 while (str.Length < len) str = str + pad;
 return str[..len];
 }
@@ -2756,12 +2758,19 @@ private object? EvaluateSplit(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var str = Evaluate(args[0], row)?.ToString();
 if (str is null) return null;
-var delimiter = args.Count > 1 ? Evaluate(args[1], row)?.ToString() ?? "," : ",";
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#split
-//   "If delimiter is an empty string, each character in value becomes a separate element."
-if (delimiter.Length == 0)
-return str.Select(c => (object?)c.ToString()).ToList();
-return str.Split(delimiter).Cast<object?>().ToList();
+//   NULL propagation: if delimiter is NULL, result is NULL.
+if (args.Count > 1)
+{
+    var delimVal = Evaluate(args[1], row);
+    if (delimVal is null) return null;
+    var delimiter = delimVal.ToString() ?? ",";
+    //   "If delimiter is an empty string, each character in value becomes a separate element."
+    if (delimiter.Length == 0)
+        return str.Select(c => (object?)c.ToString()).ToList();
+    return str.Split(delimiter).Cast<object?>().ToList();
+}
+return str.Split(",").Cast<object?>().ToList();
 }
 
 private object? EvaluateFormat(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -2906,8 +2915,16 @@ private object? EvaluateRegexpExtract(IReadOnlyList<SqlExpression> args, RowCont
 var str = Evaluate(args[0], row)?.ToString();
 var pattern = Evaluate(args[1], row)?.ToString();
 if (str is null || pattern is null) return null;
-var match = System.Text.RegularExpressions.Regex.Match(str, pattern);
-if (!match.Success) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_extract
+//   REGEXP_EXTRACT(value, regexp[, position[, occurrence]])
+//   position: 1-based index to start searching. occurrence: which match to return (1-based).
+var position = args.Count > 2 ? (int)ToLong(Evaluate(args[2], row)) : 1;
+var occurrence = args.Count > 3 ? (int)ToLong(Evaluate(args[3], row)) : 1;
+if (position < 1 || position > str.Length) return null;
+var searchStr = str[(position - 1)..];
+var matches = System.Text.RegularExpressions.Regex.Matches(searchStr, pattern);
+if (matches.Count < occurrence) return null;
+var match = matches[occurrence - 1];
 return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
 }
 
@@ -2951,7 +2968,10 @@ return val switch { long l => Math.Abs(l), double d => Math.Abs(d), _ => null };
 private object? EvaluateSign(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var val = Evaluate(args[0], row);
-return val switch { long l => (long)Math.Sign(l), double d => (long)Math.Sign(d), _ => null };
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#sign
+//   "INPUT: INT64 → OUTPUT: INT64, INPUT: FLOAT64 → OUTPUT: FLOAT64"
+//   "If X is NaN, the output is NaN."
+return val switch { long l => (long)Math.Sign(l), double d => double.IsNaN(d) ? double.NaN : (double)Math.Sign(d), _ => null };
 }
 
 private object? EvaluateRound(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3194,15 +3214,35 @@ if (raw1 is null || raw2 is null) return null;
 var date1 = ToDateTime(raw1);
 var date2 = ToDateTime(raw2);
 var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "DAY";
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date_diff
+//   "Gets the number of unit boundaries between two date values at a particular date part."
+//   Boundary counting: truncate both to the given part, then compute the difference.
 return part switch
 {
-"DAY" => (long)(date1 - date2).TotalDays,
+"DAY" => (long)(date1.Date - date2.Date).TotalDays,
 "MONTH" => (long)((date1.Year - date2.Year) * 12 + date1.Month - date2.Month),
 "YEAR" => (long)(date1.Year - date2.Year),
-"WEEK" => (long)((date1 - date2).TotalDays / 7),
-"QUARTER" => (long)(((date1.Year - date2.Year) * 12 + date1.Month - date2.Month) / 3),
-_ => (long)(date1 - date2).TotalDays
+"WEEK" => CountWeekBoundaries(date1, date2, DayOfWeek.Sunday),
+"QUARTER" => (long)((date1.Year * 4 + (date1.Month - 1) / 3) - (date2.Year * 4 + (date2.Month - 1) / 3)),
+_ => (long)(date1.Date - date2.Date).TotalDays
 };
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date_diff
+//   Boundary counting for WEEK: count the number of week-start boundaries between two dates.
+//   Default week start is Sunday.
+private static long CountWeekBoundaries(DateTime date1, DateTime date2, DayOfWeek weekStart)
+{
+	// Truncate both to their week start, then compute the difference in weeks.
+	var trunc1 = TruncToWeekStart(date1, weekStart);
+	var trunc2 = TruncToWeekStart(date2, weekStart);
+	return (long)((trunc1 - trunc2).TotalDays / 7);
+}
+
+private static DateTime TruncToWeekStart(DateTime date, DayOfWeek weekStart)
+{
+	int diff = ((int)date.DayOfWeek - (int)weekStart + 7) % 7;
+	return date.Date.AddDays(-diff);
 }
 
 private object? EvaluateTimestampAdd(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3261,16 +3301,33 @@ var ts1 = ToDateTimeOffset(raw1);
 var ts2 = ToDateTimeOffset(raw2);
 var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "SECOND";
 var diff = ts1 - ts2;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_diff
+//   "Gets the number of unit boundaries between two TIMESTAMP values at a particular time granularity."
+//   Boundary counting: truncate both timestamps to the given part, then compute the difference.
 return part switch
 {
 "MICROSECOND" => diff.Ticks / 10,
 "MILLISECOND" => (long)diff.TotalMilliseconds,
-"SECOND" => (long)diff.TotalSeconds,
-"MINUTE" => (long)diff.TotalMinutes,
-"HOUR" => (long)diff.TotalHours,
-"DAY" => (long)diff.TotalDays,
+"SECOND" => (long)((TruncTimestamp(ts1, "SECOND") - TruncTimestamp(ts2, "SECOND")).TotalSeconds),
+"MINUTE" => (long)((TruncTimestamp(ts1, "MINUTE") - TruncTimestamp(ts2, "MINUTE")).TotalMinutes),
+"HOUR" => (long)((TruncTimestamp(ts1, "HOUR") - TruncTimestamp(ts2, "HOUR")).TotalHours),
+"DAY" => (long)((TruncTimestamp(ts1, "DAY") - TruncTimestamp(ts2, "DAY")).TotalDays),
 _ => (long)diff.TotalSeconds
 };
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_diff
+//   Helper to truncate a timestamp to a given part boundary for boundary counting.
+private static DateTimeOffset TruncTimestamp(DateTimeOffset ts, string part)
+{
+	return part switch
+	{
+		"SECOND" => new DateTimeOffset(ts.Year, ts.Month, ts.Day, ts.Hour, ts.Minute, ts.Second, ts.Offset),
+		"MINUTE" => new DateTimeOffset(ts.Year, ts.Month, ts.Day, ts.Hour, ts.Minute, 0, ts.Offset),
+		"HOUR" => new DateTimeOffset(ts.Year, ts.Month, ts.Day, ts.Hour, 0, 0, ts.Offset),
+		"DAY" => new DateTimeOffset(ts.Year, ts.Month, ts.Day, 0, 0, 0, ts.Offset),
+		_ => ts
+	};
 }
 
 private object? EvaluateDateTrunc(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3528,10 +3585,10 @@ private object? EvaluateDatetimeDiff(IReadOnlyList<SqlExpression> args, RowConte
 		"HOUR" => (long)((new DateTime(dt1.Year, dt1.Month, dt1.Day, dt1.Hour, 0, 0) -
 		                   new DateTime(dt2.Year, dt2.Month, dt2.Day, dt2.Hour, 0, 0)).TotalHours),
 		"DAY" => (long)(dt1.Date - dt2.Date).TotalDays,
-		"WEEK" => (long)((dt1.Date - dt2.Date).TotalDays / 7),
+		"WEEK" => CountWeekBoundaries(dt1, dt2, DayOfWeek.Sunday),
 		"MONTH" => (long)((dt1.Year - dt2.Year) * 12 + dt1.Month - dt2.Month),
 		"YEAR" => (long)(dt1.Year - dt2.Year),
-		"QUARTER" => (long)(((dt1.Year - dt2.Year) * 12 + dt1.Month - dt2.Month) / 3),
+		"QUARTER" => (long)((dt1.Year * 4 + (dt1.Month - 1) / 3) - (dt2.Year * 4 + (dt2.Month - 1) / 3)),
 		_ => (long)(dt1.Date - dt2.Date).TotalDays
 	};
 }
@@ -3805,6 +3862,26 @@ if (result.Contains("%G"))
 if (result.Contains("%u"))
 	result = result.Replace("%u", (ts.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)ts.DayOfWeek).ToString());
 
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements#format_elements_date_time
+//   "%E*S: Seconds with full fractional precision (a literal '*')." e.g. "00.123456"
+//   "%E<n>S: Seconds with <n> digits of fractional precision." e.g. "%E3S" → "00.123"
+//   When fraction is zero, %E*S returns just seconds without decimal point.
+if (result.Contains("%E"))
+{
+	var micros = (int)(ts.TimeOfDay.Ticks % TimeSpan.TicksPerSecond / 10); // 0-999999
+	result = Regex.Replace(result, @"%E\*S", m =>
+	{
+		if (micros == 0) return ts.Second.ToString("D2");
+		return ts.Second.ToString("D2") + "." + micros.ToString("D6").TrimEnd('0');
+	});
+	result = Regex.Replace(result, @"%E(\d)S", m =>
+	{
+		var digits = int.Parse(m.Groups[1].Value);
+		var frac = micros.ToString("D6")[..digits];
+		return ts.Second.ToString("D2") + "." + frac;
+	});
+}
+
 // Convert BigQuery format specifiers to .NET
 var netFormat = result
 .Replace("%Y", "yyyy").Replace("%m", "MM").Replace("%d", "dd")
@@ -3910,6 +3987,9 @@ if (rawStart is double || rawEnd is double || rawStep is double)
     var dStart = ToDouble(rawStart);
     var dEnd = ToDouble(rawEnd);
     var dStep = rawStep is not null ? ToDouble(rawStep) : 1.0;
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#generate_array
+    //   "Returns an error if step_expression is set to 0."
+    if (dStep == 0.0) throw new InvalidOperationException("GENERATE_ARRAY step cannot be 0");
     var result = new List<object?>();
     if (dStep > 0) for (var i = dStart; i <= dEnd + dStep * 1e-10; i += dStep) result.Add(i);
     else if (dStep < 0) for (var i = dStart; i >= dEnd + dStep * 1e-10; i += dStep) result.Add(i);
@@ -3920,6 +4000,9 @@ else
     var start = ToLong(rawStart);
     var end = ToLong(rawEnd);
     var step = rawStep is not null ? ToLong(rawStep) : 1L;
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#generate_array
+    //   "Returns an error if step_expression is set to 0."
+    if (step == 0) throw new InvalidOperationException("GENERATE_ARRAY step cannot be 0");
     var result = new List<object?>();
     if (step > 0) for (var i = start; i <= end; i += step) result.Add(i);
     else if (step < 0) for (var i = start; i >= end; i += step) result.Add(i);

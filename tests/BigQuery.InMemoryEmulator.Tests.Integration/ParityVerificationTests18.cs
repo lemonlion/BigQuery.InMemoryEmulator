@@ -120,16 +120,20 @@ public class ParityVerificationTests18 : IAsyncLifetime
 
 	[Fact] public async Task Lpad_EmptyFill_Truncates()
 	{
-		// LPAD('hello', 3, '') → 'hel' (truncates to length)
-		var result = await S("SELECT LPAD('hello', 3, '')");
-		Assert.Equal("hel", result);
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#lpad
+		//   "This function returns an error if: pattern is empty."
+		var client = await _fixture.GetClientAsync();
+		await Assert.ThrowsAnyAsync<Exception>(
+			() => client.ExecuteQueryAsync("SELECT LPAD('hello', 3, '')", parameters: null));
 	}
 
 	[Fact] public async Task Rpad_EmptyFill_Truncates()
 	{
-		// RPAD('hello', 3, '') → 'hel' (truncates to length)
-		var result = await S("SELECT RPAD('hello', 3, '')");
-		Assert.Equal("hel", result);
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#rpad
+		//   "This function returns an error if: pattern is empty."
+		var client = await _fixture.GetClientAsync();
+		await Assert.ThrowsAnyAsync<Exception>(
+			() => client.ExecuteQueryAsync("SELECT RPAD('hello', 3, '')", parameters: null));
 	}
 
 	[Fact] public async Task Lpad_NormalPadding()
