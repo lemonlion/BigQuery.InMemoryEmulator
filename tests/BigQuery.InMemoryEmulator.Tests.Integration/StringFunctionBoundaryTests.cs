@@ -114,7 +114,7 @@ public class StringFunctionBoundaryTests : IAsyncLifetime
 	[Fact] public async Task Lpad_ZeroLength() => Assert.Equal("", await Scalar("SELECT LPAD('abc', 0, 'x')"));
 	[Fact] public async Task Lpad_ExactLength() => Assert.Equal("abc", await Scalar("SELECT LPAD('abc', 3, 'x')"));
 	[Fact] public async Task Lpad_PadByOne() => Assert.Equal("xabc", await Scalar("SELECT LPAD('abc', 4, 'x')"));
-	[Fact] public async Task Lpad_MultiChar() => Assert.Equal("xyxyab", await Scalar("SELECT LPAD('abc', 6, 'xy')"));
+	[Fact] public async Task Lpad_MultiChar() => Assert.Equal("xyxabc", await Scalar("SELECT LPAD('abc', 6, 'xy')"));
 	[Fact] public async Task Rpad_ZeroLength() => Assert.Equal("", await Scalar("SELECT RPAD('abc', 0, 'x')"));
 	[Fact] public async Task Rpad_ExactLength() => Assert.Equal("abc", await Scalar("SELECT RPAD('abc', 3, 'x')"));
 	[Fact] public async Task Rpad_PadByOne() => Assert.Equal("abcx", await Scalar("SELECT RPAD('abc', 4, 'x')"));

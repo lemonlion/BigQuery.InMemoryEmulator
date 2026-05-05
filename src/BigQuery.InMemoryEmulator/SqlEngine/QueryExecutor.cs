@@ -2818,8 +2818,12 @@ if (pad is null) return null;
 if (len < 0) throw new InvalidOperationException("LPAD: return_length must not be negative");
 if (pad.Length == 0) throw new InvalidOperationException("LPAD: pattern must not be empty");
 if (str.Length >= len) return str[..len];
-while (str.Length < len) str = pad + str;
-return str[..len];
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#lpad
+//   "Pads the original value with leading characters from the pattern."
+var padNeeded = len - str.Length;
+var fullPad = "";
+while (fullPad.Length < padNeeded) fullPad += pad;
+return fullPad[..padNeeded] + str;
 }
 
 private object? EvaluateRpad(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3664,25 +3668,33 @@ return DateOnly.FromDateTime(ParseTimestamp(str, format).DateTime);}
 
 private object? EvaluateUnixSeconds(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var ts = ToDateTimeOffset(Evaluate(args[0], row));
+var raw = Evaluate(args[0], row);
+if (raw is null) return null;
+var ts = ToDateTimeOffset(raw);
 return ts.ToUnixTimeSeconds();
 }
 
 private object? EvaluateTimestampSeconds(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var secs = ToLong(Evaluate(args[0], row));
+var raw = Evaluate(args[0], row);
+if (raw is null) return null;
+var secs = ToLong(raw);
 return DateTimeOffset.FromUnixTimeSeconds(secs);
 }
 
 private object? EvaluateTimestampMillis(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var millis = ToLong(Evaluate(args[0], row));
+var raw = Evaluate(args[0], row);
+if (raw is null) return null;
+var millis = ToLong(raw);
 return DateTimeOffset.FromUnixTimeMilliseconds(millis);
 }
 
 private object? EvaluateTimestampMicros(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var micros = ToLong(Evaluate(args[0], row));
+var raw = Evaluate(args[0], row);
+if (raw is null) return null;
+var micros = ToLong(raw);
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_micros
 //   "Interprets int64_expression as the number of microseconds since 1970-01-01 00:00:00 UTC."
 // Must preserve sub-millisecond precision (1 microsecond = 10 ticks).
@@ -3691,7 +3703,9 @@ return DateTimeOffset.UnixEpoch.AddTicks(micros * 10);
 
 private object? EvaluateUnixMillis(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var ts = ToDateTimeOffset(Evaluate(args[0], row));
+var raw = Evaluate(args[0], row);
+if (raw is null) return null;
+var ts = ToDateTimeOffset(raw);
 return ts.ToUnixTimeMilliseconds();
 }
 
@@ -3699,7 +3713,9 @@ return ts.ToUnixTimeMilliseconds();
 //   "Returns the number of microseconds since 1970-01-01 00:00:00 UTC."
 private object? EvaluateUnixMicros(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var ts = ToDateTimeOffset(Evaluate(args[0], row));
+	var raw = Evaluate(args[0], row);
+	if (raw is null) return null;
+	var ts = ToDateTimeOffset(raw);
 	return (ts - DateTimeOffset.UnixEpoch).Ticks / 10;
 }
 
@@ -3744,8 +3760,12 @@ private object? EvaluateLastDay(IReadOnlyList<SqlExpression> args, RowContext ro
 //   "Adds int64_expression units of part to the DATETIME object."
 private object? EvaluateDatetimeAdd(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var date = ToDateTime(Evaluate(args[0], row));
-	var interval = ToLong(Evaluate(args[1], row));
+	var rawDate = Evaluate(args[0], row);
+	if (rawDate is null) return null;
+	var date = ToDateTime(rawDate);
+	var rawInterval = Evaluate(args[1], row);
+	if (rawInterval is null) return null;
+	var interval = ToLong(rawInterval);
 	var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "DAY";
 	return AddToPart(date, interval, part);
 }
@@ -3754,8 +3774,12 @@ private object? EvaluateDatetimeAdd(IReadOnlyList<SqlExpression> args, RowContex
 //   "Subtracts int64_expression units of part from the DATETIME."
 private object? EvaluateDatetimeSub(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var date = ToDateTime(Evaluate(args[0], row));
-	var interval = ToLong(Evaluate(args[1], row));
+	var rawDate = Evaluate(args[0], row);
+	if (rawDate is null) return null;
+	var date = ToDateTime(rawDate);
+	var rawInterval = Evaluate(args[1], row);
+	if (rawInterval is null) return null;
+	var interval = ToLong(rawInterval);
 	var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "DAY";
 	return AddToPart(date, -interval, part);
 }
@@ -3764,8 +3788,12 @@ private object? EvaluateDatetimeSub(IReadOnlyList<SqlExpression> args, RowContex
 //   "Gets the number of unit boundaries between two DATETIME values."
 private object? EvaluateDatetimeDiff(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var dt1 = ToDateTime(Evaluate(args[0], row));
-	var dt2 = ToDateTime(Evaluate(args[1], row));
+	var raw1 = Evaluate(args[0], row);
+	if (raw1 is null) return null;
+	var raw2 = Evaluate(args[1], row);
+	if (raw2 is null) return null;
+	var dt1 = ToDateTime(raw1);
+	var dt2 = ToDateTime(raw2);
 	var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "DAY";
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_diff
 	//   "Gets the number of unit boundaries between two DATETIME values."
@@ -3932,8 +3960,12 @@ private static TimeSpan WrapTime(TimeSpan ts)
 //   "Gets the number of unit boundaries between two TIME values."
 private object? EvaluateTimeDiff(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var t1 = ToTimeSpan(Evaluate(args[0], row));
-	var t2 = ToTimeSpan(Evaluate(args[1], row));
+	var raw1 = Evaluate(args[0], row);
+	if (raw1 is null) return null;
+	var raw2 = Evaluate(args[1], row);
+	if (raw2 is null) return null;
+	var t1 = ToTimeSpan(raw1);
+	var t2 = ToTimeSpan(raw2);
 	var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "SECOND";
 	// Boundary counting: truncate both values to the part, then diff.
 	return part switch
