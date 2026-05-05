@@ -1804,16 +1804,21 @@ return l ?? Evaluate(bin.Right, row);
 var left = Evaluate(bin.Left, row);
 var right = Evaluate(bin.Right, row);
 
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_type
+//   "All comparisons with NaN return FALSE, except for != which returns TRUE."
+bool leftNaN = left is double dl && double.IsNaN(dl);
+bool rightNaN = right is double dr && double.IsNaN(dr);
+
 return bin.Op switch
 {
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#comparison_operators
 //   "All comparisons return NULL when either of the values being compared is NULL."
-BinaryOp.Eq => left is null || right is null ? null : CompareRaw(left, right) == 0,
-BinaryOp.Neq => left is null || right is null ? null : CompareRaw(left, right) != 0,
-BinaryOp.Lt => left is null || right is null ? null : CompareRaw(left, right) < 0,
-BinaryOp.Lte => left is null || right is null ? null : CompareRaw(left, right) <= 0,
-BinaryOp.Gt => left is null || right is null ? null : CompareRaw(left, right) > 0,
-BinaryOp.Gte => left is null || right is null ? null : CompareRaw(left, right) >= 0,
+BinaryOp.Eq => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) == 0,
+BinaryOp.Neq => left is null || right is null ? null : leftNaN || rightNaN ? true : CompareRaw(left, right) != 0,
+BinaryOp.Lt => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) < 0,
+BinaryOp.Lte => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) <= 0,
+BinaryOp.Gt => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) > 0,
+BinaryOp.Gte => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) >= 0,
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#date_arithmetics
 //   "DATE + INT64 → DATE: adds a number of days to the date."
 BinaryOp.Add => left is DateOnly dLeft && right is long rDays ? dLeft.AddDays((int)rDays)
@@ -1914,6 +1919,11 @@ private object? EvaluateBetween(BetweenExpr btw, RowContext row)
 var val = Evaluate(btw.Expr, row);
 var low = Evaluate(btw.Low, row);
 var high = Evaluate(btw.High, row);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_type
+//   "All comparisons with NaN return FALSE, except for != which returns TRUE."
+if (val is double dv && double.IsNaN(dv)) return false;
+if (low is double dl && double.IsNaN(dl)) return false;
+if (high is double dh && double.IsNaN(dh)) return false;
 // Ref: SQL standard three-valued logic: BETWEEN is (val >= low) AND (val <= high)
 //   NULL AND FALSE = FALSE; FALSE AND NULL = FALSE; NULL AND TRUE = NULL; TRUE AND NULL = NULL
 bool? geqLow = (val is null || low is null) ? null : CompareRaw(val, low) >= 0;
@@ -1930,11 +1940,17 @@ var val = Evaluate(inExpr.Expr, row);
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#in_operators
 //   "Returns NULL if search_value is NULL."
 if (val is null) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_type
+//   "All comparisons with NaN return FALSE, except for != which returns TRUE."
+//   NaN IN (...) should never match since NaN != anything.
+if (val is double dv && double.IsNaN(dv)) return false;
 bool hasNull = false;
 foreach (var v in inExpr.Values)
 {
 	var item = Evaluate(v, row);
 	if (item is null) { hasNull = true; continue; }
+	// Skip NaN items — NaN != NaN
+	if (item is double di && double.IsNaN(di)) continue;
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#in_operators
 	//   Use CompareRaw for numeric type coercion (INT64 vs FLOAT64).
 	if (CompareRaw(val, item) == 0) return true;
@@ -1945,12 +1961,25 @@ return hasNull ? null : false;
 private object? EvaluateInSubquery(InSubqueryExpr inSub, RowContext row)
 {
 var val = Evaluate(inSub.Expr, row);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#in_operators
+//   "Returns NULL if search_value is NULL."
+if (val is null) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_type
+//   "All comparisons with NaN return FALSE, except for != which returns TRUE."
+if (val is double dv && double.IsNaN(dv)) return false;
 // Pass active CTE results so subqueries can reference outer CTEs
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#cte_rules
 var result = ExecuteSelect(inSub.Subquery, _activeCteResults);
 var values = result.Rows.Select(r => r.F?[0]?.V).ToList();
-var found = values.Any(v => CompareRaw(val, v) == 0);
-return found;
+bool hasNull = false;
+foreach (var v in values)
+{
+    if (v is null) { hasNull = true; continue; }
+    // Skip NaN items — NaN != NaN
+    if (v is double di && double.IsNaN(di)) continue;
+    if (CompareRaw(val, v) == 0) return true;
+}
+return hasNull ? null : false;
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#using_clause
@@ -1991,6 +2020,9 @@ private object? EvaluateInUnnest(InUnnestExpr inUnnest, RowContext row)
 {
 var val = Evaluate(inUnnest.Expr, row);
 if (val is null) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_type
+//   "All comparisons with NaN return FALSE, except for != which returns TRUE."
+if (val is double dv && double.IsNaN(dv)) return false;
 var arrayVal = Evaluate(inUnnest.ArrayExpr, row);
 if (arrayVal is null) return null;
 if (arrayVal is IEnumerable<object?> list)
@@ -1999,6 +2031,8 @@ if (arrayVal is IEnumerable<object?> list)
     foreach (var item in list)
     {
         if (item is null) { hasNull = true; continue; }
+        // Skip NaN items — NaN != NaN
+        if (item is double di && double.IsNaN(di)) continue;
         if (CompareRaw(val, item) == 0) return true;
     }
     return hasNull ? null : false;
@@ -2202,7 +2236,12 @@ foreach (var (when, then) in caseExpr.Branches)
 var whenVal = Evaluate(when, row);
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions#case_expr
 //   Simple CASE uses equality comparison; NULL = NULL is NULL (not TRUE) in SQL.
-if (operand is not null && whenVal is not null && Equals(operand, whenVal))
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_type
+//   "All comparisons with NaN return FALSE, except for != which returns TRUE."
+if (operand is null || whenVal is null) continue;
+if (operand is double dOp && double.IsNaN(dOp)) continue;
+if (whenVal is double dWhen && double.IsNaN(dWhen)) continue;
+if (CompareRaw(operand, whenVal) == 0)
 	return Evaluate(then, row);
 }
 }
@@ -8306,11 +8345,13 @@ bool b => b ? "true" : "false",
             //   CAST(FLOAT64 AS STRING) returns "inf", "-inf", "NaN" for special values.
             double d when double.IsPositiveInfinity(d) => "inf",
             double d when double.IsNegativeInfinity(d) => "-inf",
-            double d when double.IsNaN(d) => "nan",
+            double d when double.IsNaN(d) => "NaN",
             // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions
             //   BigQuery FLOAT64 whole numbers format with ".0" suffix (e.g., ROUND(2.5) → "3.0")
             double d when d == Math.Floor(d) && d >= long.MinValue && d <= long.MaxValue => $"{(long)d}.0",
-            double d => d.ToString(CultureInfo.InvariantCulture),
+            // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+            //   BigQuery uses lowercase 'e' for scientific notation in CAST(FLOAT64 AS STRING).
+            double d => d.ToString(CultureInfo.InvariantCulture).Replace('E', 'e'),
 DateTimeOffset dto => FormatTimestampAsString(dto),
 DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string

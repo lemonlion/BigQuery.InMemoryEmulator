@@ -258,6 +258,6 @@ public class ParityVerificationTests11 : IAsyncLifetime
 	[Fact] public async Task Ieee_Divide_NaN()
 	{
 		var result = await S("SELECT CAST(IEEE_DIVIDE(0, 0) AS STRING)");
-		Assert.Equal("nan", result);
+		Assert.Equal("NaN", result);
 	}
 }
