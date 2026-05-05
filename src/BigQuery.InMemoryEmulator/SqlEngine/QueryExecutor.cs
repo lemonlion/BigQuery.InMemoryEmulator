@@ -6864,8 +6864,9 @@ return funcName switch
 "STRING_AGG" => EvaluateStringAgg(agg, rows),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_agg
 //   "By default, ARRAY_AGG includes NULLs." Only filtered with IGNORE NULLS.
+//   "If there are zero input rows, this function returns NULL."
 //   "LIMIT n: Limits the number of elements in the resulting array to n."
-"ARRAY_AGG" => ApplyAggLimit(HasIgnoreNullsMarker(agg) ? values.Where(v => v is not null).ToList() : values.ToList(), agg.AggLimit),
+"ARRAY_AGG" => EvaluateArrayAgg(agg, values),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_concat_agg
 //   "Concatenates elements from expression of type ARRAY, returning a single ARRAY as a result."
 "ARRAY_CONCAT_AGG" => values.Where(v => v is not null)
@@ -6928,6 +6929,15 @@ _ => throw new NotSupportedException("Unsupported aggregate: " + funcName)
 /// </summary>
 private static List<object?> ApplyAggLimit(List<object?> values, int? limit) =>
 	limit.HasValue ? values.Take(limit.Value).ToList() : values;
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_agg
+//   "If there are zero input rows, this function returns NULL."
+private object? EvaluateArrayAgg(AggregateCall agg, List<object?> values)
+{
+    var filtered = HasIgnoreNullsMarker(agg) ? values.Where(v => v is not null).ToList() : values.ToList();
+    if (filtered.Count == 0) return null;
+    return ApplyAggLimit(filtered, agg.AggLimit);
+}
 
 /// <summary>
 /// Checks if an AggregateCall has the '__IGNORE_NULLS__' marker injected by the preprocessor.
@@ -7865,46 +7875,49 @@ private static (string? DatasetId, string TableId) SplitTableName(string tableNa
 
 private object? EvaluateWithAggregates(SqlExpression expr, List<RowContext> groupRows)
 {
+    // When groupRows is empty (implicit aggregation on empty set), use a dummy row context
+    // for evaluation of non-aggregate sub-expressions (all literals after aggregates resolve).
+    var dummyRow = groupRows.Count > 0 ? groupRows[0] : new RowContext(new Dictionary<string, object?>(), null);
     return expr switch
     {
         AggregateCall agg => EvaluateAggregate(agg, groupRows),
-        ColumnRef col => EvaluateColumnRef(col, groupRows[0]),
+        ColumnRef col => groupRows.Count > 0 ? EvaluateColumnRef(col, dummyRow) : null,
         LiteralExpr lit => lit.Value,
         ParameterRef p => ResolveParameter(p.Name),
         BinaryExpr bin => EvaluateBinary(new BinaryExpr(
             new LiteralExpr(EvaluateWithAggregates(bin.Left, groupRows)), bin.Op,
-            new LiteralExpr(EvaluateWithAggregates(bin.Right, groupRows))), groupRows[0]),
+            new LiteralExpr(EvaluateWithAggregates(bin.Right, groupRows))), dummyRow),
         UnaryExpr un => EvaluateUnary(new UnaryExpr(un.Op,
-            new LiteralExpr(EvaluateWithAggregates(un.Operand, groupRows))), groupRows[0]),
+            new LiteralExpr(EvaluateWithAggregates(un.Operand, groupRows))), dummyRow),
         FunctionCall fn => EvaluateFunctionCall(new FunctionCall(fn.FunctionName,
-            fn.Args.Select(a => (SqlExpression)new LiteralExpr(EvaluateWithAggregates(a, groupRows))).ToList()), groupRows[0]),
+            fn.Args.Select(a => (SqlExpression)new LiteralExpr(EvaluateWithAggregates(a, groupRows))).ToList()), dummyRow),
         CaseExpr ce => EvaluateCase(new CaseExpr(
             ce.Operand is not null ? new LiteralExpr(EvaluateWithAggregates(ce.Operand, groupRows)) : null,
             ce.Branches.Select(b => ((SqlExpression)new LiteralExpr(EvaluateWithAggregates(b.When, groupRows)),
                                      (SqlExpression)new LiteralExpr(EvaluateWithAggregates(b.Then, groupRows)))).ToList(),
-            ce.Else is not null ? new LiteralExpr(EvaluateWithAggregates(ce.Else, groupRows)) : null), groupRows[0]),
+            ce.Else is not null ? new LiteralExpr(EvaluateWithAggregates(ce.Else, groupRows)) : null), dummyRow),
         CastExpr cast => CastValue(EvaluateWithAggregates(cast.Expr, groupRows), cast.TargetType, cast.Safe),
         IsNullExpr isNull => EvaluateWithAggregates(isNull.Expr, groupRows) is null == !isNull.IsNot,
-        IsBoolExpr isBool => EvaluateIsBool(isBool, groupRows[0]),
-        IsDistinctFromExpr isDistinct => EvaluateIsDistinctFrom(isDistinct, groupRows[0]),
+        IsBoolExpr isBool => EvaluateIsBool(isBool, dummyRow),
+        IsDistinctFromExpr isDistinct => EvaluateIsDistinctFrom(isDistinct, dummyRow),
         ArraySubscriptExpr arrSub => EvaluateArraySubscript(
             new ArraySubscriptExpr(
                 new LiteralExpr(EvaluateWithAggregates(arrSub.Array, groupRows)),
                 arrSub.AccessMode,
                 new LiteralExpr(EvaluateWithAggregates(arrSub.Index, groupRows))),
-            groupRows[0]),
+            dummyRow),
         BetweenExpr btw => EvaluateBetween(new BetweenExpr(
             new LiteralExpr(EvaluateWithAggregates(btw.Expr, groupRows)),
             new LiteralExpr(EvaluateWithAggregates(btw.Low, groupRows)),
-            new LiteralExpr(EvaluateWithAggregates(btw.High, groupRows))), groupRows[0]),
+            new LiteralExpr(EvaluateWithAggregates(btw.High, groupRows))), dummyRow),
         InExpr inE => EvaluateIn(new InExpr(
             new LiteralExpr(EvaluateWithAggregates(inE.Expr, groupRows)),
-            inE.Values.Select(v => (SqlExpression)new LiteralExpr(EvaluateWithAggregates(v, groupRows))).ToList()), groupRows[0]),
+            inE.Values.Select(v => (SqlExpression)new LiteralExpr(EvaluateWithAggregates(v, groupRows))).ToList()), dummyRow),
         LikeExpr lk => EvaluateLike(new LikeExpr(
             new LiteralExpr(EvaluateWithAggregates(lk.Expr, groupRows)),
             new LiteralExpr(EvaluateWithAggregates(lk.Pattern, groupRows)),
-            lk.IsNot), groupRows[0]),
-        _ => Evaluate(expr, groupRows[0])
+            lk.IsNot), dummyRow),
+        _ => Evaluate(expr, dummyRow)
     };
 }
 
@@ -8403,6 +8416,11 @@ CaseExpr ce => ce.Branches.Any(w => ContainsAggregate(w.When) || ContainsAggrega
 CastExpr c => ContainsAggregate(c.Expr),
 ArraySubscriptExpr sub => ContainsAggregate(sub.Array) || ContainsAggregate(sub.Index),
 FieldAccessExpr fa => ContainsAggregate(fa.Object),
+IsNullExpr isNull => ContainsAggregate(isNull.Expr),
+IsBoolExpr isBool => ContainsAggregate(isBool.Expr),
+BetweenExpr btw => ContainsAggregate(btw.Expr) || ContainsAggregate(btw.Low) || ContainsAggregate(btw.High),
+InExpr inE => ContainsAggregate(inE.Expr) || inE.Values.Any(ContainsAggregate),
+IsDistinctFromExpr isD => ContainsAggregate(isD.Left) || ContainsAggregate(isD.Right),
 _ => false
 };
 }
