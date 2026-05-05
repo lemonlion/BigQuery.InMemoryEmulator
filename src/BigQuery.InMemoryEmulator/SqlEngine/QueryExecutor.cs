@@ -4312,7 +4312,11 @@ return null;
 private object? EvaluateArrayToString(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var val = Evaluate(args[0], row);
-var delimiter = Evaluate(args[1], row)?.ToString() ?? ",";
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-reference
+//   General rule: "If an operand is NULL, the function result is NULL."
+var delimiterVal = Evaluate(args[1], row);
+if (delimiterVal is null) return null;
+var delimiter = delimiterVal.ToString() ?? ",";
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#array_to_string
 //   "If null_text is specified, the function replaces any NULL values in the array with null_text."
 //   "If null_text is not specified, NULL values are omitted."
@@ -8406,10 +8410,19 @@ private object? EvaluateInitcap(IReadOnlyList<SqlExpression> args, RowContext ro
     var val = Evaluate(args[0], row)?.ToString();
     if (val is null) return null;
     // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#initcap
+    //   "If value or delimiters is NULL, the function returns NULL."
     //   Default delimiters: whitespace and many punctuation characters.
-    var delimiters = args.Count > 1
-        ? Evaluate(args[1], row)?.ToString() ?? ""
-        : " \t\n\r[](){}/ |\\<>!?@\"^#$&~_,.:;*%+-";
+    string delimiters;
+    if (args.Count > 1)
+    {
+        var delimVal = Evaluate(args[1], row)?.ToString();
+        if (delimVal is null) return null;
+        delimiters = delimVal;
+    }
+    else
+    {
+        delimiters = " \t\n\r[](){}/ |\\<>!?@\"^#$&~_,.:;*%+-";
+    }
     var result = new char[val.Length];
     var newWord = true;
     for (var i = 0; i < val.Length; i++)
@@ -8438,6 +8451,10 @@ private object? EvaluateTranslate(IReadOnlyList<SqlExpression> args, RowContext 
     var source = Evaluate(args[1], row)?.ToString();
     var target = Evaluate(args[2], row)?.ToString();
     if (expr is null || source is null || target is null) return null;
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#translate
+    //   "A duplicate character in source_characters results in an error."
+    if (source.Distinct().Count() != source.Length)
+        throw new InvalidOperationException("TRANSLATE: duplicate character in source_characters");
     var sb = new System.Text.StringBuilder(expr.Length);
     foreach (var c in expr)
     {
