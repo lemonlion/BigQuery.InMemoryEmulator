@@ -2091,7 +2091,9 @@ _ => DateTimeOffset.Parse(NormalizeTimestampString(val.ToString()!), CultureInfo
 {
 DateOnly d => d,
 DateTime dt => DateOnly.FromDateTime(dt),
-DateTimeOffset dto => DateOnly.FromDateTime(dto.DateTime),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_date
+//   "Casting from a timestamp to a date ... as of the default time zone (UTC)."
+DateTimeOffset dto => DateOnly.FromDateTime(dto.UtcDateTime),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_date
 //   BigQuery only accepts ISO 8601 date format (yyyy-MM-dd) for CAST to DATE.
 string s => DateOnly.ParseExact(s.Length > 10 ? s[..10] : s, "yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -2100,7 +2102,9 @@ _ => DateOnly.FromDateTime(DateTime.Parse(val.ToString()!, CultureInfo.Invariant
 "DATETIME" => val switch
 {
 DateTime dt => dt,
-DateTimeOffset dto => dto.DateTime,
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_datetime
+//   "Casting from a timestamp to datetime ... as of the default time zone (UTC)."
+DateTimeOffset dto => dto.UtcDateTime,
 DateOnly d => d.ToDateTime(TimeOnly.MinValue),
 string s => DateTime.Parse(s, CultureInfo.InvariantCulture),
 _ => DateTime.Parse(val.ToString()!, CultureInfo.InvariantCulture)
@@ -4971,6 +4975,14 @@ private object? EvaluateToJsonString(IReadOnlyList<SqlExpression> args, RowConte
             catch { }
         }
         return System.Text.Json.JsonSerializer.Serialize(s);
+    }
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#to_json_string
+    //   "A non-finite number (NaN, Infinity, -Infinity) converts to a JSON string."
+    if (val is double d)
+    {
+        if (double.IsNaN(d)) return "\"NaN\"";
+        if (double.IsPositiveInfinity(d)) return "\"Infinity\"";
+        if (double.IsNegativeInfinity(d)) return "\"-Infinity\"";
     }
     return System.Text.Json.JsonSerializer.Serialize(val);
 }
@@ -8357,7 +8369,12 @@ private object? EvaluateRegexpExtractAll(IReadOnlyList<SqlExpression> args, RowC
     var result = new List<object?>();
     foreach (Match m in matches)
     {
-        result.Add(m.Groups.Count > 1 ? m.Groups[1].Value : m.Value);
+        // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_extract_all
+        //   Non-participating optional capturing group returns NULL element.
+        if (m.Groups.Count > 1)
+            result.Add(m.Groups[1].Success ? m.Groups[1].Value : null);
+        else
+            result.Add(m.Value);
     }
     return result;
 }
