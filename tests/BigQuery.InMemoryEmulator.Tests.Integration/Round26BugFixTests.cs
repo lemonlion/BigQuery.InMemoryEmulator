@@ -139,4 +139,20 @@ public class Round26BugFixTests : IAsyncLifetime
 		var row = result.Single();
 		Assert.Null(row["result"]);
 	}
+
+	/// <summary>
+	/// TIME(NULL) should return NULL, not default to 00:00:00.
+	/// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions#time
+	///   "Returns NULL if any input is NULL."
+	/// </summary>
+	[Fact]
+	public async Task TimeConstructor_NullArg_ReturnsNull()
+	{
+		var client = await _fixture.GetClientAsync();
+		var result = await client.ExecuteQueryAsync(
+			"SELECT TIME(CAST(NULL AS TIMESTAMP)) AS result",
+			parameters: null);
+		var row = result.Single();
+		Assert.Null(row["result"]);
+	}
 }

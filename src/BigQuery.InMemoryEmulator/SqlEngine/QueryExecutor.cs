@@ -4253,6 +4253,9 @@ private object? EvaluateTimeConstructor(IReadOnlyList<SqlExpression> args, RowCo
 		return new TimeSpan(h, m, s);
 	}
 	var val = Evaluate(args[0], row);
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions#time
+	//   "Returns NULL if any input is NULL."
+	if (val is null) return null;
 	return val switch
 	{
 		TimeSpan ts => ts,
