@@ -3169,9 +3169,22 @@ case 't':
 //   "%t" produces a readable form of the value (unquoted for strings).
 return ConvertToString(arg) ?? "NULL";
 case 'T':
-// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
-//   "%T" produces a valid SQL literal: strings are single-quoted.
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#format_string
+//   %T behavior table:
+//   | STRING | quoted string literal | → 'sample'
+//   | BOOL   | boolean value         | → TRUE / FALSE (valid SQL literal)
+//   | DATE   | DATE "2011-02-03"     |
+//   | TIMESTAMP | TIMESTAMP "2011-02-03 04:05:06+00" |
+//   | DATETIME  | DATETIME "..." |
+//   | TIME      | TIME "..." |
 if (arg is string sArg) return "'" + sArg + "'";
+if (arg is bool bArg) return bArg ? "TRUE" : "FALSE";
+if (arg is DateOnly dateArg) return "DATE \"" + dateArg.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "\"";
+if (arg is DateTimeOffset dtoArg) return "TIMESTAMP \"" + FormatTimestampAsString(dtoArg) + "\"";
+if (arg is DateTime dtArg) return "DATETIME \"" + (dtArg.TimeOfDay.Ticks % TimeSpan.TicksPerSecond != 0
+    ? dtArg.ToString("yyyy-MM-dd HH:mm:ss.ffffff", CultureInfo.InvariantCulture)
+    : dtArg.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)) + "\"";
+if (arg is TimeSpan tsArg) return "TIME \"" + tsArg.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture) + "\"";
 return ConvertToString(arg) ?? "NULL";
 default:
 return ConvertToString(arg) ?? "NULL";
@@ -3274,7 +3287,10 @@ return result;
 private object? EvaluateAbs(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var val = Evaluate(args[0], row);
-return val switch { long l => Math.Abs(l), double d => Math.Abs(d), _ => null };
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#abs
+//   "If X is the minimum possible INT64 value, an error is generated because the
+//    result would overflow the INT64 domain."
+return val switch { long l => l == long.MinValue ? throw new OverflowException("ABS of minimum INT64 value overflows") : Math.Abs(l), double d => Math.Abs(d), _ => null };
 }
 
 private object? EvaluateSign(IReadOnlyList<SqlExpression> args, RowContext row)

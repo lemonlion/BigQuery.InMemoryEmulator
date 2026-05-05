@@ -103,9 +103,10 @@ public class Round16BugFixTests : IAsyncLifetime
 	[Fact]
 	public async Task Format_T_Boolean_NoQuotes()
 	{
-		// %T for BOOL produces boolean value (same as %t for bool)
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#format_string
+		//   %T produces "a valid SQL literal" for BOOL → TRUE/FALSE (uppercase)
 		var result = await S("SELECT FORMAT('%T', true)");
-		Assert.Equal("true", result);
+		Assert.Equal("TRUE", result);
 	}
 
 	[Fact]
