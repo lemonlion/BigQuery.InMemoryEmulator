@@ -7298,34 +7298,175 @@ return stmt switch
 private static InMemoryBigQueryResult CombineSetOperation(
     SetOperationStatement setOp, InMemoryBigQueryResult left, InMemoryBigQueryResult right)
 {
-var schema = left.Schema;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#set_operators
+//   "Column types must be coercible to a common supertype. INT64 and FLOAT64 coerce to FLOAT64.
+//    Incompatible types (e.g., INT64 and STRING) produce an error."
+var schema = CoerceSetOperationSchema(left.Schema, right.Schema);
+var leftRows = CoerceRowsToSchema(left.Rows, left.Schema, schema);
+var rightRows = CoerceRowsToSchema(right.Rows, right.Schema, schema);
 
 var resultRows = (setOp.OpType, setOp.All) switch
 {
-(SetOperationType.Union, true) => left.Rows.Concat(right.Rows).ToList(),
-(SetOperationType.Union, false) => left.Rows.Concat(right.Rows)
+(SetOperationType.Union, true) => leftRows.Concat(rightRows).ToList(),
+(SetOperationType.Union, false) => leftRows.Concat(rightRows)
 .GroupBy(r => string.Join("|", r.F?.Select(f => f?.V?.ToString() ?? "NULL") ?? Array.Empty<string>()))
 .Select(g => g.First()).ToList(),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#except
 //   "EXCEPT DISTINCT removes both duplicates and rows present in the right operand."
 //   "EXCEPT ALL removes only one occurrence of each right-side row from the left side."
-(SetOperationType.Except, false) => left.Rows
+(SetOperationType.Except, false) => leftRows
 .GroupBy(r => string.Join("|", r.F?.Select(f => f?.V?.ToString() ?? "NULL") ?? Array.Empty<string>()))
 .Select(g => g.First())
-.Where(lr => !right.Rows.Any(rr => RowEquals(lr, rr))).ToList(),
-(SetOperationType.Except, true) => ExceptAll(left.Rows, right.Rows),
+.Where(lr => !rightRows.Any(rr => RowEquals(lr, rr))).ToList(),
+(SetOperationType.Except, true) => ExceptAll(leftRows, rightRows),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#intersect
 //   "INTERSECT DISTINCT returns only distinct rows present in both operands."
 //   "INTERSECT ALL preserves duplicate counts: min(count_left, count_right) for each row."
-(SetOperationType.Intersect, false) => left.Rows
-.Where(lr => right.Rows.Any(rr => RowEquals(lr, rr)))
+(SetOperationType.Intersect, false) => leftRows
+.Where(lr => rightRows.Any(rr => RowEquals(lr, rr)))
 .GroupBy(r => string.Join("|", r.F?.Select(f => f?.V?.ToString() ?? "NULL") ?? Array.Empty<string>()))
 .Select(g => g.First()).ToList(),
-(SetOperationType.Intersect, true) => IntersectAll(left.Rows, right.Rows),
+(SetOperationType.Intersect, true) => IntersectAll(leftRows, rightRows),
 _ => throw new NotSupportedException("Unsupported set operation: " + setOp.OpType)
 };
 
 return new InMemoryBigQueryResult(schema, resultRows);
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#set_operators
+//   "The column names from the first SELECT statement are used as the column names for the combined result set."
+//   "The column types must be coercible to a common supertype."
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules#supertypes
+//   "INT64 and FLOAT64 have common supertype FLOAT64."
+//   "INT64 and NUMERIC have common supertype NUMERIC."
+//   "Incompatible types (e.g., INT64 and STRING) produce an error."
+private static TableSchema CoerceSetOperationSchema(TableSchema leftSchema, TableSchema rightSchema)
+{
+    var leftFields = leftSchema.Fields ?? new List<TableFieldSchema>();
+    var rightFields = rightSchema.Fields ?? new List<TableFieldSchema>();
+
+    if (leftFields.Count != rightFields.Count)
+        throw new InvalidOperationException(
+            $"Set operation requires the same number of columns in each query, but got {leftFields.Count} and {rightFields.Count}.");
+
+    var coercedFields = new List<TableFieldSchema>();
+    for (int i = 0; i < leftFields.Count; i++)
+    {
+        var lt = leftFields[i].Type ?? "STRING";
+        var rt = rightFields[i].Type ?? "STRING";
+        var coerced = GetSetOpSupertype(lt, rt, i);
+        coercedFields.Add(new TableFieldSchema
+        {
+            Name = leftFields[i].Name,
+            Type = coerced,
+            Mode = leftFields[i].Mode,
+            Fields = leftFields[i].Fields
+        });
+    }
+
+    return new TableSchema { Fields = coercedFields };
+}
+
+private static string GetSetOpSupertype(string leftType, string rightType, int columnIndex)
+{
+    // Normalize to canonical form for comparison
+    var leftNorm = leftType.ToUpperInvariant() switch { "INTEGER" => "INT64", "FLOAT" => "FLOAT64", _ => leftType.ToUpperInvariant() };
+    var rightNorm = rightType.ToUpperInvariant() switch { "INTEGER" => "INT64", "FLOAT" => "FLOAT64", _ => rightType.ToUpperInvariant() };
+
+    if (string.Equals(leftNorm, rightNorm, StringComparison.OrdinalIgnoreCase))
+        return leftType; // Same type, return original form
+
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules#supertypes
+    //   "INT64 and FLOAT64 have common supertype FLOAT64."
+    // STRING is used as default type for NULL-inferred schemas; treat as compatible with any other type.
+    // In BigQuery, SELECT NULL returns INT64, but our InferType(null) returns STRING.
+    // When STRING meets a concrete type in a UNION, use the concrete type.
+    if (leftNorm == "STRING") return rightType;
+    if (rightNorm == "STRING") return leftType;
+
+    // Numeric supertypes: INT64 + FLOAT64 → FLOAT64, INT64 + NUMERIC → NUMERIC, NUMERIC + FLOAT64 → FLOAT64
+    var numericTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "INT64", "FLOAT64", "NUMERIC", "BIGNUMERIC" };
+
+    if (numericTypes.Contains(leftNorm) && numericTypes.Contains(rightNorm))
+    {
+        // FLOAT64 is the supertype when FLOAT64 is involved — return REST API form "FLOAT"
+        if (leftNorm == "FLOAT64" || rightNorm == "FLOAT64") return "FLOAT";
+        if (leftNorm == "BIGNUMERIC" || rightNorm == "BIGNUMERIC") return "BIGNUMERIC";
+        if (leftNorm == "NUMERIC" || rightNorm == "NUMERIC") return "NUMERIC";
+        return leftType; // Both INT64
+    }
+
+    // For other incompatible types (e.g., TIMESTAMP vs BOOLEAN), produce an error.
+    throw new InvalidOperationException(
+        $"Column {columnIndex + 1} in set operation has incompatible types: {leftType} and {rightType}");
+}
+
+private static List<TableRow> CoerceRowsToSchema(List<TableRow> rows, TableSchema sourceSchema, TableSchema targetSchema)
+{
+    var sourceFields = sourceSchema.Fields ?? new List<TableFieldSchema>();
+    var targetFields = targetSchema.Fields ?? new List<TableFieldSchema>();
+
+    // Check if coercion is needed
+    bool needsCoercion = false;
+    for (int i = 0; i < sourceFields.Count && i < targetFields.Count; i++)
+    {
+        var st = NormalizeFieldType(sourceFields[i].Type ?? "STRING");
+        var tt = NormalizeFieldType(targetFields[i].Type ?? "STRING");
+        if (!string.Equals(st, tt, StringComparison.OrdinalIgnoreCase))
+        {
+            needsCoercion = true;
+            break;
+        }
+    }
+
+    if (!needsCoercion) return rows;
+
+    var result = new List<TableRow>(rows.Count);
+    foreach (var row in rows)
+    {
+        if (row.F is null) { result.Add(row); continue; }
+        var newCells = new List<TableCell>(row.F.Count);
+        for (int i = 0; i < row.F.Count; i++)
+        {
+            var cell = row.F[i];
+            if (i < sourceFields.Count && i < targetFields.Count)
+            {
+                var st = NormalizeFieldType(sourceFields[i].Type ?? "STRING");
+                var tt = NormalizeFieldType(targetFields[i].Type ?? "STRING");
+                if (!string.Equals(st, tt, StringComparison.OrdinalIgnoreCase) && cell?.V != null)
+                {
+                    newCells.Add(new TableCell { V = CoerceValue(cell.V, st, tt) });
+                    continue;
+                }
+            }
+            newCells.Add(cell);
+        }
+        result.Add(new TableRow { F = newCells });
+    }
+    return result;
+}
+
+private static object? CoerceValue(object? value, string fromType, string toType)
+{
+    if (value == null) return null;
+
+    var toNorm = toType.ToUpperInvariant() switch { "INTEGER" => "INT64", "FLOAT" => "FLOAT64", _ => toType.ToUpperInvariant() };
+
+    return toNorm switch
+    {
+        "FLOAT64" or "FLOAT" => value switch
+        {
+            long l => (double)l,
+            string s => double.Parse(s, System.Globalization.CultureInfo.InvariantCulture),
+            _ => value
+        },
+        "NUMERIC" or "BIGNUMERIC" => value switch
+        {
+            long l => (double)l,
+            _ => value
+        },
+        _ => value
+    };
 }
 
 private static bool RowEquals(TableRow a, TableRow b)
