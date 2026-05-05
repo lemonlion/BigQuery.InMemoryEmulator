@@ -2047,7 +2047,9 @@ long l => l,
 //   "Halfway cases such as 1.5 or -0.5 round away from zero."
 double d => (long)Math.Round(d, MidpointRounding.AwayFromZero),
 bool b => b ? 1L : 0L,
-string s => long.Parse(s, CultureInfo.InvariantCulture),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_int64
+//   "A hex string can be cast to an integer. For example, 0x123 to 291 or -0x123 to -291."
+string s => ParseInt64String(s),
 _ => Convert.ToInt64(val, CultureInfo.InvariantCulture)
 },
 "FLOAT64" or "FLOAT" or "NUMERIC" or "BIGNUMERIC" or "DECIMAL" => val switch
@@ -3040,7 +3042,11 @@ var searchStr = str[(position - 1)..];
 var matches = System.Text.RegularExpressions.Regex.Matches(searchStr, pattern);
 if (matches.Count < occurrence) return null;
 var match = matches[occurrence - 1];
-return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_extract
+//   If the capturing group is optional and does not participate in the match, returns NULL.
+if (match.Groups.Count > 1)
+	return match.Groups[1].Success ? match.Groups[1].Value : null;
+return match.Value;
 }
 
 private object? EvaluateRegexpReplace(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3051,6 +3057,8 @@ var replacement = Evaluate(args[2], row)?.ToString() ?? "";
 if (str is null || pattern is null) return null;
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_replace
 //   BigQuery uses \1, \2 for backreferences; .NET uses $1, $2.
+//   First escape any literal $ to $$ so .NET doesn't interpret them as backrefs.
+replacement = replacement.Replace("$", "$$");
 replacement = System.Text.RegularExpressions.Regex.Replace(replacement, @"\\(\d)", "$$$1");
 return System.Text.RegularExpressions.Regex.Replace(str, pattern, replacement);
 }
@@ -3333,7 +3341,9 @@ private object? EvaluateDateAdd(IReadOnlyList<SqlExpression> args, RowContext ro
 var raw = Evaluate(args[0], row);
 if (raw is null) return null;
 var date = ToDateTime(raw);
-var interval = ToLong(Evaluate(args[1], row));
+var rawInterval = Evaluate(args[1], row);
+if (rawInterval is null) return null;
+var interval = ToLong(rawInterval);
 var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "DAY";
 var result = AddToPart(date, interval, part);
 return raw is DateOnly ? DateOnly.FromDateTime(result) : result;
@@ -3344,7 +3354,9 @@ private object? EvaluateDateSub(IReadOnlyList<SqlExpression> args, RowContext ro
 var raw = Evaluate(args[0], row);
 if (raw is null) return null;
 var date = ToDateTime(raw);
-var interval = ToLong(Evaluate(args[1], row));
+var rawInterval = Evaluate(args[1], row);
+if (rawInterval is null) return null;
+var interval = ToLong(rawInterval);
 var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "DAY";
 var result = AddToPart(date, -interval, part);
 return raw is DateOnly ? DateOnly.FromDateTime(result) : result;
@@ -4341,7 +4353,9 @@ int step = 1;
 string part = "DAY";
 if (args.Count >= 3)
 {
-    step = (int)ToLong(Evaluate(args[2], row));
+    var stepVal = Evaluate(args[2], row);
+    if (stepVal is null) return null;
+    step = (int)ToLong(stepVal);
 }
 if (args.Count >= 4)
 {
@@ -8066,6 +8080,21 @@ _ => Convert.ToInt64(val, CultureInfo.InvariantCulture)
 };
 }
 
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_int64
+//   "A hex string can be cast to an integer. For example, 0x123 to 291 or -0x123 to -291."
+private static long ParseInt64String(string s)
+{
+	s = s.Trim();
+	bool negative = s.StartsWith('-');
+	var unsigned = negative ? s[1..] : s;
+	if (unsigned.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+	{
+		var result = long.Parse(unsigned[2..], System.Globalization.NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+		return negative ? -result : result;
+	}
+	return long.Parse(s, CultureInfo.InvariantCulture);
+}
+
 private static string? ConvertToString(object? val)
 {
 return val switch
@@ -8083,9 +8112,11 @@ bool b => b ? "true" : "false",
             double d => d.ToString(CultureInfo.InvariantCulture),
 DateTimeOffset dto => FormatTimestampAsString(dto),
 DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+//   "Casting from a datetime type to a string is of the form YYYY-MM-DD HH:MM:SS."
 DateTime dt => dt.TimeOfDay.Ticks % TimeSpan.TicksPerSecond != 0
-	? dt.ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff", CultureInfo.InvariantCulture)
-	: dt.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
+	? dt.ToString("yyyy-MM-dd HH:mm:ss.ffffff", CultureInfo.InvariantCulture)
+	: dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
 TimeSpan ts => ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture),
 _ => val.ToString()
 };

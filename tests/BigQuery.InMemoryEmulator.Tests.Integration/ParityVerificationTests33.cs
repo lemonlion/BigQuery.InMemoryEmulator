@@ -51,14 +51,14 @@ public class ParityVerificationTests33 : IAsyncLifetime
 	[Fact] public async Task DatetimeTrunc_Millisecond()
 	{
 		var result = await S("SELECT CAST(DATETIME_TRUNC(DATETIME '2024-06-15 12:34:56.789012', MILLISECOND) AS STRING)");
-		Assert.Equal("2024-06-15T12:34:56.789000", result);
+		Assert.Equal("2024-06-15 12:34:56.789000", result);
 	}
 
 	[Fact] public async Task DatetimeTrunc_Microsecond()
 	{
 		// MICROSECOND truncation preserves full microsecond precision (no sub-microsecond in BigQuery)
 		var result = await S("SELECT CAST(DATETIME_TRUNC(DATETIME '2024-06-15 12:34:56.789012', MICROSECOND) AS STRING)");
-		Assert.Equal("2024-06-15T12:34:56.789012", result);
+		Assert.Equal("2024-06-15 12:34:56.789012", result);
 	}
 
 	// ───────────────────────────────────────────────────────────────────────────
@@ -69,13 +69,13 @@ public class ParityVerificationTests33 : IAsyncLifetime
 	[Fact] public async Task DatetimeAdd_Millisecond()
 	{
 		var result = await S("SELECT CAST(DATETIME_ADD(DATETIME '2024-01-01 00:00:00', INTERVAL 500 MILLISECOND) AS STRING)");
-		Assert.Equal("2024-01-01T00:00:00.500000", result);
+		Assert.Equal("2024-01-01 00:00:00.500000", result);
 	}
 
 	[Fact] public async Task DatetimeAdd_Microsecond()
 	{
 		var result = await S("SELECT CAST(DATETIME_ADD(DATETIME '2024-01-01 00:00:00', INTERVAL 123456 MICROSECOND) AS STRING)");
-		Assert.Equal("2024-01-01T00:00:00.123456", result);
+		Assert.Equal("2024-01-01 00:00:00.123456", result);
 	}
 
 	// ───────────────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ public class ParityVerificationTests33 : IAsyncLifetime
 	[Fact] public async Task DatetimeSub_Millisecond()
 	{
 		var result = await S("SELECT CAST(DATETIME_SUB(DATETIME '2024-01-01 00:00:01', INTERVAL 500 MILLISECOND) AS STRING)");
-		Assert.Equal("2024-01-01T00:00:00.500000", result);
+		Assert.Equal("2024-01-01 00:00:00.500000", result);
 	}
 
 	// ───────────────────────────────────────────────────────────────────────────

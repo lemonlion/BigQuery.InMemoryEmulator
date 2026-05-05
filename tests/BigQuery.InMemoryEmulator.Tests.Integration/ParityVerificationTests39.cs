@@ -129,7 +129,7 @@ public class ParityVerificationTests39 : IAsyncLifetime
 		// 2024-01-10 is Wednesday → truncates to Monday Jan 8
 		var result = await ScalarAsync(
 			"SELECT CAST(DATETIME_TRUNC(DATETIME '2024-01-10 15:30:00', ISOWEEK) AS STRING)");
-		Assert.Equal("2024-01-08T00:00:00", result);
+		Assert.Equal("2024-01-08 00:00:00", result);
 	}
 
 	[Fact]
@@ -140,7 +140,7 @@ public class ParityVerificationTests39 : IAsyncLifetime
 		// ISO year 2024 starts on Monday 2024-01-01
 		var result = await ScalarAsync(
 			"SELECT CAST(DATETIME_TRUNC(DATETIME '2024-03-15 12:00:00', ISOYEAR) AS STRING)");
-		Assert.Equal("2024-01-01T00:00:00", result);
+		Assert.Equal("2024-01-01 00:00:00", result);
 	}
 
 	// FormatValue double overflow: very large double values should not crash

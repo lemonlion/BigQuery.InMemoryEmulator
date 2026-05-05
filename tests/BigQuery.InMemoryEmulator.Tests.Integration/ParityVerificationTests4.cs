@@ -603,14 +603,14 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_add
 		var r = await S("SELECT CAST(DATETIME_ADD(DATETIME '2023-01-15 10:00:00', INTERVAL 5 DAY) AS STRING)");
-		Assert.Equal("2023-01-20T10:00:00", r);
+		Assert.Equal("2023-01-20 10:00:00", r);
 	}
 
 	[Fact]
 	public async Task DatetimeSub_Hours()
 	{
 		var r = await S("SELECT CAST(DATETIME_SUB(DATETIME '2023-01-15 10:00:00', INTERVAL 3 HOUR) AS STRING)");
-		Assert.Equal("2023-01-15T07:00:00", r);
+		Assert.Equal("2023-01-15 07:00:00", r);
 	}
 
 	[Fact]
@@ -626,7 +626,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_trunc
 		var r = await S("SELECT CAST(DATETIME_TRUNC(DATETIME '2023-06-15 10:30:00', MONTH) AS STRING)");
-		Assert.Equal("2023-06-01T00:00:00", r);
+		Assert.Equal("2023-06-01 00:00:00", r);
 	}
 
 	[Fact]

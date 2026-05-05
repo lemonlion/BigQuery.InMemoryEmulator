@@ -53,9 +53,12 @@ internal static class SqlParser
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#time_literals
 		sql = Regex.Replace(sql, @"\bTIME\s+'([^']*)'", "CAST('$1' AS TIME)", RegexOptions.IgnoreCase);
 
-		// INTERVAL n PART → n, 'PART' (inside function args like TIMESTAMP_ADD)
+		// INTERVAL expr PART → expr, 'PART' (inside function args like TIMESTAMP_ADD)
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#interval_type
-		sql = Regex.Replace(sql, @"\bINTERVAL\s+(-?\d+)\s+(\w+)", "$1, '$2'", RegexOptions.IgnoreCase);
+		// Match literal numbers directly, or expressions containing parentheses (like CAST(...))
+		sql = Regex.Replace(sql,
+			@"\bINTERVAL\s+((?:-?\d+|(?:[^,()\s]+|\((?:[^()]*|\([^()]*\))*\))+))\s+(YEAR|QUARTER|MONTH|WEEK|DAY|HOUR|MINUTE|SECOND|MILLISECOND|MICROSECOND)\b",
+			"$1, '$2'", RegexOptions.IgnoreCase);
 
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-reference#safe_prefix
 		//   "SAFE. prefix: Returns NULL instead of an error."
