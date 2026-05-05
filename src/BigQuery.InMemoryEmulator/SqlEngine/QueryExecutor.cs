@@ -2891,7 +2891,11 @@ private object? EvaluateLeftRight(IReadOnlyList<SqlExpression> args, RowContext 
 {
 var str = Evaluate(args[0], row)?.ToString();
 if (str is null) return null;
-var len = (int)ToLong(Evaluate(args[1], row));
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#left
+//   Returns NULL if any argument is NULL.
+var lenVal = Evaluate(args[1], row);
+if (lenVal is null) return null;
+var len = (int)ToLong(lenVal);
 if (len >= str.Length) return str;
 return isLeft ? str[..len] : str[^len..];
 }
@@ -3140,8 +3144,10 @@ private object? EvaluateRound(IReadOnlyList<SqlExpression> args, RowContext row)
 var val = Evaluate(args[0], row);
 if (val is null) return null;
 var d = ToDouble(val);
-var digits = args.Count > 1 ? (int)ToLong(Evaluate(args[1], row)) : 0;
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#round
+//   Returns NULL if any argument is NULL.
+int digits = 0;
+if (args.Count > 1) { var dv = Evaluate(args[1], row); if (dv is null) return null; digits = (int)ToLong(dv); }
 //   Supports negative digits to round to powers of 10.
 if (digits < 0)
 {
@@ -3156,7 +3162,10 @@ private object? EvaluateTrunc(IReadOnlyList<SqlExpression> args, RowContext row)
 var val = Evaluate(args[0], row);
 if (val is null) return null;
 var d = ToDouble(val);
-var digits = args.Count > 1 ? (int)ToLong(Evaluate(args[1], row)) : 0;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#trunc
+//   Returns NULL if any argument is NULL.
+int digits = 0;
+if (args.Count > 1) { var dv = Evaluate(args[1], row); if (dv is null) return null; digits = (int)ToLong(dv); }
 var factor = Math.Pow(10, digits);
 return Math.Truncate(d * factor) / factor;
 }
@@ -3946,9 +3955,14 @@ private object? EvaluateTimeConstructor(IReadOnlyList<SqlExpression> args, RowCo
 {
 	if (args.Count == 3)
 	{
-		var h = (int)ToLong(Evaluate(args[0], row));
-		var m = (int)ToLong(Evaluate(args[1], row));
-		var s = (int)ToLong(Evaluate(args[2], row));
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions#time
+		//   Returns NULL if any argument is NULL.
+		var hv = Evaluate(args[0], row); if (hv is null) return null;
+		var mv = Evaluate(args[1], row); if (mv is null) return null;
+		var sv = Evaluate(args[2], row); if (sv is null) return null;
+		var h = (int)ToLong(hv);
+		var m = (int)ToLong(mv);
+		var s = (int)ToLong(sv);
 		return new TimeSpan(h, m, s);
 	}
 	var val = Evaluate(args[0], row);
@@ -5279,8 +5293,12 @@ catch { return null; }
 //   "Returns a network mask."
 private object? EvaluateNetIpNetMask(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var output_bytes = (int)ToLong(Evaluate(args[0], row));
-var prefix = (int)ToLong(Evaluate(args[1], row));
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/net_functions#netip_net_mask
+//   Returns NULL if any argument is NULL.
+var obv = Evaluate(args[0], row); if (obv is null) return null;
+var pv = Evaluate(args[1], row); if (pv is null) return null;
+var output_bytes = (int)ToLong(obv);
+var prefix = (int)ToLong(pv);
 var mask = new byte[output_bytes];
 for (int i = 0; i < prefix && i < output_bytes * 8; i++)
 	mask[i / 8] |= (byte)(128 >> (i % 8));
@@ -5293,7 +5311,10 @@ private object? EvaluateNetIpTrunc(IReadOnlyList<SqlExpression> args, RowContext
 {
 var val = Evaluate(args[0], row);
 if (val is not byte[] bytes) return null;
-var prefix = (int)ToLong(Evaluate(args[1], row));
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/net_functions#netip_trunc
+//   Returns NULL if any argument is NULL.
+var prefixVal = Evaluate(args[1], row); if (prefixVal is null) return null;
+var prefix = (int)ToLong(prefixVal);
 var result = new byte[bytes.Length];
 for (int i = 0; i < bytes.Length; i++)
 {
