@@ -2826,8 +2826,12 @@ private object? EvaluateInstr(IReadOnlyList<SqlExpression> args, RowContext row)
     var str = Evaluate(args[0], row)?.ToString();
     var sub = Evaluate(args[1], row)?.ToString();
     if (str is null || sub is null) return null;
-    int position = args.Count > 2 ? (int)ToLong(Evaluate(args[2], row)) : 1;
-    int occurrence = args.Count > 3 ? (int)ToLong(Evaluate(args[3], row)) : 1;
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#instr
+    //   Returns NULL if any input is NULL.
+    int position = 1;
+    if (args.Count > 2) { var pv = Evaluate(args[2], row); if (pv is null) return null; position = (int)ToLong(pv); }
+    int occurrence = 1;
+    if (args.Count > 3) { var ov = Evaluate(args[3], row); if (ov is null) return null; occurrence = (int)ToLong(ov); }
     if (position <= 0) position = 1;
     int startIdx = position - 1;
     for (int i = 0; i < occurrence; i++)
@@ -3077,8 +3081,12 @@ if (str is null || pattern is null) return null;
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_extract
 //   REGEXP_EXTRACT(value, regexp[, position[, occurrence]])
 //   position: 1-based index to start searching. occurrence: which match to return (1-based).
-var position = args.Count > 2 ? (int)ToLong(Evaluate(args[2], row)) : 1;
-var occurrence = args.Count > 3 ? (int)ToLong(Evaluate(args[3], row)) : 1;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_extract
+//   Returns NULL if any input is NULL.
+int position = 1;
+if (args.Count > 2) { var pv = Evaluate(args[2], row); if (pv is null) return null; position = (int)ToLong(pv); }
+int occurrence = 1;
+if (args.Count > 3) { var ov = Evaluate(args[3], row); if (ov is null) return null; occurrence = (int)ToLong(ov); }
 if (position < 1 || position > str.Length) return null;
 var searchStr = str[(position - 1)..];
 var matches = System.Text.RegularExpressions.Regex.Matches(searchStr, pattern);
@@ -3287,9 +3295,12 @@ string s => DateOnly.ParseExact(s.Length > 10 ? s[..10] : s, "yyyy-MM-dd", Cultu
 _ => DateOnly.FromDateTime(DateTime.Parse(val?.ToString() ?? "", CultureInfo.InvariantCulture))
 };
 }
-return new DateOnly((int)ToLong(Evaluate(args[0], row)),
-(int)ToLong(Evaluate(args[1], row)),
-(int)ToLong(Evaluate(args[2], row)));
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date
+//   Returns NULL if any input is NULL.
+var yv = Evaluate(args[0], row); if (yv is null) return null;
+var mv = Evaluate(args[1], row); if (mv is null) return null;
+var dv = Evaluate(args[2], row); if (dv is null) return null;
+return new DateOnly((int)ToLong(yv), (int)ToLong(mv), (int)ToLong(dv));
 }
 
 private object? EvaluateDateTimeConstructor(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3314,12 +3325,16 @@ var time = Evaluate(args[1], row)?.ToString() ?? "00:00:00";
 var ts = TimeSpan.Parse(time, CultureInfo.InvariantCulture);
 return date.Date.Add(ts);
 }
-return new DateTime((int)ToLong(Evaluate(args[0], row)),
-(int)ToLong(Evaluate(args[1], row)),
-(int)ToLong(Evaluate(args[2], row)),
-args.Count > 3 ? (int)ToLong(Evaluate(args[3], row)) : 0,
-args.Count > 4 ? (int)ToLong(Evaluate(args[4], row)) : 0,
-args.Count > 5 ? (int)ToLong(Evaluate(args[5], row)) : 0);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime
+//   Returns NULL if any input is NULL.
+var yv = Evaluate(args[0], row); if (yv is null) return null;
+var mov = Evaluate(args[1], row); if (mov is null) return null;
+var dv = Evaluate(args[2], row); if (dv is null) return null;
+int hh = 0, mi = 0, ss = 0;
+if (args.Count > 3) { var v = Evaluate(args[3], row); if (v is null) return null; hh = (int)ToLong(v); }
+if (args.Count > 4) { var v = Evaluate(args[4], row); if (v is null) return null; mi = (int)ToLong(v); }
+if (args.Count > 5) { var v = Evaluate(args[5], row); if (v is null) return null; ss = (int)ToLong(v); }
+return new DateTime((int)ToLong(yv), (int)ToLong(mov), (int)ToLong(dv), hh, mi, ss);
 }
 
 private object? EvaluateTimestampConstructor(IReadOnlyList<SqlExpression> args, RowContext row)
