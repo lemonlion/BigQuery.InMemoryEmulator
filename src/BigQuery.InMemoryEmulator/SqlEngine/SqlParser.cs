@@ -57,6 +57,11 @@ internal static class SqlParser
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#interval_type
 		sql = Regex.Replace(sql, @"\bINTERVAL\s+(-?\d+)\s+(\w+)", "$1, '$2'", RegexOptions.IgnoreCase);
 
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-reference#safe_prefix
+		//   "SAFE. prefix: Returns NULL instead of an error."
+		// Transform SAFE.FUNCTION_NAME( into __SAFE__FUNCTION_NAME( so the executor can detect it.
+		sql = Regex.Replace(sql, @"\bSAFE\.(\w+)\s*\(", "__SAFE__$1(", RegexOptions.IgnoreCase);
+
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_agg
 		//   "By default, ARRAY_AGG includes NULLs."
 		// Transform IGNORE NULLS to a trailing marker argument so the executor can detect it.

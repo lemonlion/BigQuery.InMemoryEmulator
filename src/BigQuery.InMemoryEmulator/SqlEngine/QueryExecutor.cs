@@ -2271,6 +2271,13 @@ private object? EvaluateFunctionCall(FunctionCall fn, RowContext row)
 var name = fn.FunctionName.ToUpperInvariant();
 var args = fn.Args;
 
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-reference#safe_prefix
+//   "When a function is prefixed with SAFE., it returns NULL instead of an error."
+bool safeMode = name.StartsWith("__SAFE__");
+if (safeMode) name = name["__SAFE__".Length..];
+
+try
+{
 return name switch
 {
 // String functions
@@ -2372,10 +2379,14 @@ return name switch
 "POW" or "POWER" => EvaluatePow(args, row),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions
 //   "All mathematical functions return NULL for NULL input parameters."
-"SQRT" => EvaluateUnaryMathOrNull(args, row, Math.Sqrt),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#sqrt
+//   "Generates an error if X is less than 0."
+"SQRT" => EvaluateSqrt(args, row),
 "LOG" => EvaluateLogOrNull(args, row),
-"LOG10" => EvaluateUnaryMathOrNull(args, row, Math.Log10),
-"LN" => EvaluateUnaryMathOrNull(args, row, Math.Log),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#log
+//   "If X is less than or equal to zero, an error is produced."
+"LOG10" => EvaluateLog10OrNull(args, row),
+"LN" => EvaluateLnOrNull(args, row),
 "EXP" => EvaluateUnaryMathOrNull(args, row, Math.Exp),
 "GREATEST" => EvaluateGreatest(args, row),
 "LEAST" => EvaluateLeast(args, row),
@@ -2689,6 +2700,11 @@ or "ST_BUFFER" or "ST_SIMPLIFY" or "ST_DUMP"
 
 _ => EvaluateUdf(name, args, row)
 };
+}
+catch when (safeMode)
+{
+return null;
+}
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#concat
@@ -8404,13 +8420,46 @@ private object? EvaluateLogOrNull(IReadOnlyList<SqlExpression> args, RowContext 
 {
     var val = Evaluate(args[0], row);
     if (val is null) return null;
+    var x = ToDouble(val);
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#log
+    //   "If X is less than or equal to zero, an error is produced."
+    if (x <= 0) throw new InvalidOperationException("LOG: argument must be positive");
     if (args.Count > 1)
     {
         var baseVal = Evaluate(args[1], row);
         if (baseVal is null) return null;
-        return Math.Log(ToDouble(val), ToDouble(baseVal));
+        var b = ToDouble(baseVal);
+        if (b <= 0 || b == 1.0) throw new InvalidOperationException("LOG: base must be positive and not equal to 1");
+        return Math.Log(x, b);
     }
-    return Math.Log(ToDouble(val));
+    return Math.Log(x);
+}
+
+private object? EvaluateSqrt(IReadOnlyList<SqlExpression> args, RowContext row)
+{
+    var val = Evaluate(args[0], row);
+    if (val is null) return null;
+    var x = ToDouble(val);
+    if (x < 0) throw new InvalidOperationException("SQRT: cannot take square root of negative number");
+    return Math.Sqrt(x);
+}
+
+private object? EvaluateLog10OrNull(IReadOnlyList<SqlExpression> args, RowContext row)
+{
+    var val = Evaluate(args[0], row);
+    if (val is null) return null;
+    var x = ToDouble(val);
+    if (x <= 0) throw new InvalidOperationException("LOG10: argument must be positive");
+    return Math.Log10(x);
+}
+
+private object? EvaluateLnOrNull(IReadOnlyList<SqlExpression> args, RowContext row)
+{
+    var val = Evaluate(args[0], row);
+    if (val is null) return null;
+    var x = ToDouble(val);
+    if (x <= 0) throw new InvalidOperationException("LN: argument must be positive");
+    return Math.Log(x);
 }
 
 private object? EvaluateBinaryMathOrNull(IReadOnlyList<SqlExpression> args, RowContext row, Func<double, double, double> fn)
