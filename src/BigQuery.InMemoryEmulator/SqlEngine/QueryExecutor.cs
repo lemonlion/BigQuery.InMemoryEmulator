@@ -3304,6 +3304,7 @@ return Math.Pow(x, y);
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#greatest
 //   "Returns NULL if any of the inputs is NULL."
+//   "Otherwise, in the case of floating-point arguments, if any argument is NaN, returns NaN."
 private object? EvaluateGreatest(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 object? best = null;
@@ -3312,6 +3313,7 @@ foreach (var arg in args)
 {
 var val = Evaluate(arg, row);
 if (val is null) return null;
+if (val is double d && double.IsNaN(d)) return double.NaN;
 if (first || CompareRaw(val, best!) > 0) best = val;
 first = false;
 }
@@ -3320,6 +3322,7 @@ return best;
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#least
 //   "Returns NULL if any of the inputs is NULL."
+//   "Otherwise, in the case of floating-point arguments, if any argument is NaN, returns NaN."
 private object? EvaluateLeast(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 object? best = null;
@@ -3328,6 +3331,7 @@ foreach (var arg in args)
 {
 var val = Evaluate(arg, row);
 if (val is null) return null;
+if (val is double d && double.IsNaN(d)) return double.NaN;
 if (first || CompareRaw(val, best!) < 0) best = val;
 first = false;
 }

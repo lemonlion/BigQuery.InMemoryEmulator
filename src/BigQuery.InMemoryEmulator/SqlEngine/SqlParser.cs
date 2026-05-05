@@ -992,8 +992,12 @@ Token.EqualTo(SqlToken.LParen)
 			.IgnoreThen(Token.EqualTo(SqlToken.LParen))
 			.IgnoreThen(SP.Ref(() => Expression!))
 			.Then(expr => Token.EqualTo(SqlToken.RParen).IgnoreThen(
+				// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#unnest_operator
+				//   "UNNEST(expr) [AS alias]" — alias can be with or without AS keyword
 				Token.EqualTo(SqlToken.As).IgnoreThen(IdentifierOrKeyword)
-					.Select(a => (string?)a).OptionalOrDefault()
+					.Select(a => (string?)a).Try()
+				.Or(Identifier.Select(a => (string?)a).Try())
+				.Or(Constant((string?)null))
 			).Then(alias =>
 				// WITH OFFSET [AS offset_alias]
 				Token.EqualTo(SqlToken.With).IgnoreThen(Token.EqualTo(SqlToken.Offset))
