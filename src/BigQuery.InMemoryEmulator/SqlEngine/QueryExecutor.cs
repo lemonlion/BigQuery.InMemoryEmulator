@@ -1813,8 +1813,8 @@ return bin.Op switch
 {
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#comparison_operators
 //   "All comparisons return NULL when either of the values being compared is NULL."
-BinaryOp.Eq => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) == 0,
-BinaryOp.Neq => left is null || right is null ? null : leftNaN || rightNaN ? true : CompareRaw(left, right) != 0,
+BinaryOp.Eq => left is null || right is null ? null : leftNaN || rightNaN ? false : StructAwareEquals(left, right),
+BinaryOp.Neq => left is null || right is null ? null : leftNaN || rightNaN ? true : StructAwareNotEquals(left, right),
 BinaryOp.Lt => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) < 0,
 BinaryOp.Lte => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) <= 0,
 BinaryOp.Gt => left is null || right is null ? null : leftNaN || rightNaN ? false : CompareRaw(left, right) > 0,
@@ -2228,9 +2228,12 @@ private static string NormalizeTimestampString(string s)
 
 private object? EvaluateCase(CaseExpr caseExpr, RowContext row)
 {
+object? result;
 if (caseExpr.Operand is not null)
 {
 var operand = Evaluate(caseExpr.Operand, row);
+result = null;
+bool matched = false;
 foreach (var (when, then) in caseExpr.Branches)
 {
 var whenVal = Evaluate(when, row);
@@ -2242,15 +2245,44 @@ if (operand is null || whenVal is null) continue;
 if (operand is double dOp && double.IsNaN(dOp)) continue;
 if (whenVal is double dWhen && double.IsNaN(dWhen)) continue;
 if (CompareRaw(operand, whenVal) == 0)
-	return Evaluate(then, row);
+{ result = Evaluate(then, row); matched = true; break; }
 }
+if (!matched)
+	result = caseExpr.Else is not null ? Evaluate(caseExpr.Else, row) : null;
 }
 else
 {
+result = null;
+bool matched = false;
 foreach (var (when, then) in caseExpr.Branches)
-if (IsTruthy(Evaluate(when, row))) return Evaluate(then, row);
+{ if (IsTruthy(Evaluate(when, row))) { result = Evaluate(then, row); matched = true; break; } }
+if (!matched)
+	result = caseExpr.Else is not null ? Evaluate(caseExpr.Else, row) : null;
 }
-return caseExpr.Else is not null ? Evaluate(caseExpr.Else, row) : null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions#case
+//   "Result type is the common supertype of all THEN/ELSE expressions."
+return CoerceCaseResult(result, caseExpr, row);
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules#supertypes
+//   "INT64 and FLOAT64 have a common supertype of FLOAT64."
+private object? CoerceCaseResult(object? result, CaseExpr caseExpr, RowContext row)
+{
+if (result is null || result is not long) return result;
+// Check if any THEN or ELSE branch could produce FLOAT64
+foreach (var (_, then) in caseExpr.Branches)
+{
+    if (then is LiteralExpr lit && lit.Value is double) return (double)(long)result;
+    var val = Evaluate(then, row);
+    if (val is double) return (double)(long)result;
+}
+if (caseExpr.Else is not null)
+{
+    if (caseExpr.Else is LiteralExpr lit && lit.Value is double) return (double)(long)result;
+    var val = Evaluate(caseExpr.Else, row);
+    if (val is double) return (double)(long)result;
+}
+return result;
 }
 
 private object? EvaluateScalarSubquery(ScalarSubquery sub, RowContext row)
@@ -2266,6 +2298,10 @@ var result = sub.Subquery switch
     _ => throw new NotSupportedException($"Unsupported subquery type: {sub.Subquery.GetType().Name}")
 };
 if (result.Rows.Count == 0) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/subqueries#scalar_subquery_concepts
+//   "A scalar subquery must return at most one row. If it returns more than one row, an error is raised."
+if (result.Rows.Count > 1)
+    throw new InvalidOperationException("Scalar subquery produced more than one element");
 // Re-parse the formatted value back to its typed form using the schema
 // so comparisons with typed values (long, double) work correctly.
 var rawVal = result.Rows[0].F?[0]?.V;
@@ -2449,11 +2485,17 @@ return name switch
 //   "Converts a BYTES value to a STRING value and replace any invalid UTF-8 characters with U+FFFD."
 "SAFE_CONVERT_BYTES_TO_STRING" => EvaluateSafeConvertBytesToString(args, row),
 "SAFE_DIVIDE" => EvaluateSafeDivide(args, row),
-"COALESCE" => args.Select(a => Evaluate(a, row)).FirstOrDefault(v => v is not null),
-"IF" => IsTruthy(Evaluate(args[0], row)) ? Evaluate(args[1], row) : Evaluate(args[2], row),
-"IFNULL" => Evaluate(args[0], row) ?? Evaluate(args[1], row),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions#coalesce
+//   "Returns the value of the first non-NULL expression. Result type is the common supertype."
+"COALESCE" => CoerceToCommonType(args.Select(a => Evaluate(a, row)).FirstOrDefault(v => v is not null), args, row),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions#if
+//   "Result type is the common supertype of then_expression and else_expression."
+"IF" => CoerceToCommonType(IsTruthy(Evaluate(args[0], row)) ? Evaluate(args[1], row) : Evaluate(args[2], row), args.Skip(1).ToList(), row),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions#ifnull
+//   "Result type is the common supertype of both arguments."
+"IFNULL" => CoerceToCommonType(Evaluate(args[0], row) ?? Evaluate(args[1], row), args, row),
 "NULLIF" => EvaluateNullIf(args, row),
-"IIF" => IsTruthy(Evaluate(args[0], row)) ? Evaluate(args[1], row) : (args.Count > 2 ? Evaluate(args[2], row) : null),
+"IIF" => CoerceToCommonType(IsTruthy(Evaluate(args[0], row)) ? Evaluate(args[1], row) : (args.Count > 2 ? Evaluate(args[2], row) : null), args.Skip(1).ToList(), row),
 
 // Math functions
 "ABS" => EvaluateAbs(args, row),
@@ -3210,6 +3252,23 @@ var b = Evaluate(args[1], row);
 if (a is null && b is null) return null;
 if (a is not null && b is not null && CompareRaw(a, b) == 0) return null;
 return a;
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules#supertypes
+//   "INT64 and FLOAT64 have a common supertype of FLOAT64."
+//   Conditional expressions (IF, COALESCE, IFNULL, CASE) coerce to common supertype.
+private object? CoerceToCommonType(object? result, IReadOnlyList<SqlExpression> branches, RowContext row)
+{
+if (result is null) return null;
+if (result is not long) return result;
+// Check if any branch is a FLOAT64 literal or evaluates to double
+foreach (var branch in branches)
+{
+    if (branch is LiteralExpr lit && lit.Value is double) return (double)(long)result;
+    var val = Evaluate(branch, row);
+    if (val is double) return (double)(long)result;
+}
+return result;
 }
 
 private object? EvaluateAbs(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -8258,6 +8317,38 @@ return da3.Count.CompareTo(db3.Count);
 }
 if (a is IComparable ca) return ca.CompareTo(b);
 return string.Compare(a.ToString(), b.ToString(), StringComparison.OrdinalIgnoreCase);
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#struct_type
+//   "Two STRUCTs are equal when all fields are equal. If any field comparison yields NULL
+//    (because one or both field values are NULL), the overall comparison is NULL."
+private static object? StructAwareEquals(object? left, object? right)
+{
+if (left is IDictionary<string, object?> dl && right is IDictionary<string, object?> dr)
+{
+    bool hasNull = false;
+    foreach (var key in dl.Keys)
+    {
+        if (!dr.ContainsKey(key)) return false;
+        var lv = dl[key];
+        var rv = dr[key];
+        if (lv is null || rv is null) { hasNull = true; continue; }
+        // Recurse for nested structs
+        var fieldResult = StructAwareEquals(lv, rv);
+        if (fieldResult is null) { hasNull = true; continue; }
+        if (fieldResult is false) return false;
+    }
+    if (dl.Count != dr.Count) return false;
+    return hasNull ? null : (object)true;
+}
+return CompareRaw(left, right) == 0;
+}
+
+private static object? StructAwareNotEquals(object? left, object? right)
+{
+var eqResult = StructAwareEquals(left, right);
+if (eqResult is null) return null;
+return !(bool)eqResult;
 }
 
 private static object? ArithmeticOp(object? left, object? right,
