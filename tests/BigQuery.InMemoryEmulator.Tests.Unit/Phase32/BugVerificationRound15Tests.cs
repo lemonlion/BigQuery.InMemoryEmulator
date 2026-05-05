@@ -151,4 +151,23 @@ public class BugVerificationRound15Tests
 		var (_, rows) = executor.Execute("SELECT EXTRACT(WEEK(SUNDAY) FROM DATE '2024-01-07')");
 		Assert.Equal("1", rows[0].F[0].V?.ToString());
 	}
+
+	// =====================================================
+	// Regression check: POW(-2, 2) should work (integer exponent)
+	// =====================================================
+	[Fact]
+	public void Pow_NegativeBase_IntegerExponent_ShouldWork()
+	{
+		var executor = CreateExecutor();
+		var (_, rows) = executor.Execute("SELECT POW(-2, 2)");
+		Assert.Equal("4", rows[0].F[0].V?.ToString());
+	}
+
+	[Fact]
+	public void Pow_NegativeBase_NegativeIntegerExponent_ShouldWork()
+	{
+		var executor = CreateExecutor();
+		var (_, rows) = executor.Execute("SELECT POW(-2, -2)");
+		Assert.Equal("0.25", rows[0].F[0].V?.ToString());
+	}
 }
