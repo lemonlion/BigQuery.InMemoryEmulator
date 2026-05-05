@@ -2838,11 +2838,13 @@ return null;
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#concat
 //   "If any input argument is NULL, CONCAT returns NULL."
+//   "All values must be BYTES or data types that can be cast to STRING."
+//   Implicit CAST AS STRING is applied to non-string arguments.
 private object? EvaluateConcatString(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var parts = args.Select(a => Evaluate(a, row)).ToList();
 if (parts.Any(p => p is null)) return null;
-return string.Concat(parts.Select(p => p!.ToString()));
+return string.Concat(parts.Select(p => ConvertToString(p)));
 }
 
 private object? EvaluateReplace(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3771,6 +3773,17 @@ private static DateTime GetIsoYearStart(DateTime date)
 	return System.Globalization.ISOWeek.ToDateTime(isoYear, 1, DayOfWeek.Monday);
 }
 
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#last_day
+//   "LAST_DAY(date_expression, ISOYEAR): Returns the last day of the ISO year."
+//   The ISO year ends on the Sunday of the last ISO week of that year.
+private static DateTime GetIsoYearEnd(DateTime date)
+{
+	var isoYear = System.Globalization.ISOWeek.GetYear(date);
+	var weeksInYear = System.Globalization.ISOWeek.GetWeeksInYear(isoYear);
+	// Last day of ISO year is the Sunday of the last ISO week
+	return System.Globalization.ISOWeek.ToDateTime(isoYear, weeksInYear, DayOfWeek.Sunday);
+}
+
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date_trunc
 //   "WEEK(<WEEKDAY>): Truncates date_expression to the preceding WEEKDAY."
 private static DateTime TruncToWeekday(DateTime date, string part)
@@ -4039,6 +4052,14 @@ private object? EvaluateLastDay(IReadOnlyList<SqlExpression> args, RowContext ro
 			"QUARTER" => new DateTime(date.Year, ((date.Month - 1) / 3 + 1) * 3, 1).AddMonths(1).AddDays(-1),
 			"MONTH" => new DateTime(date.Year, date.Month, DateTime.DaysInMonth(date.Year, date.Month)),
 			"WEEK" => date.AddDays(((int)DayOfWeek.Saturday - (int)date.DayOfWeek + 7) % 7),
+			// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#last_day
+			//   "LAST_DAY(date_expression, ISOWEEK): Returns the last day of the ISO week
+			//    containing date_expression. ISO weeks begin on Monday and end on Sunday."
+			"ISOWEEK" => date.AddDays((7 - (int)date.DayOfWeek) % 7),
+			// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#last_day
+			//   "LAST_DAY(date_expression, ISOYEAR): Returns the last day of the ISO year
+			//    containing date_expression. The ISO year ends on the Sunday of the last ISO week."
+			"ISOYEAR" => GetIsoYearEnd(date),
 			_ => new DateTime(date.Year, date.Month, DateTime.DaysInMonth(date.Year, date.Month)),
 		};
 	}
