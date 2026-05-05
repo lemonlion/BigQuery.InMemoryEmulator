@@ -1427,7 +1427,10 @@ if (funcName == "LAG")
 {
 bool ignoreNulls = HasIgnoreNullsMarker(navArgs);
 var effectiveArgs = FilterIgnoreNullsMarker(navArgs);
-int offset = effectiveArgs.Count > 1 ? (int)ToLong(Evaluate(effectiveArgs[1], currentRow)) : 1;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions#lag
+//   Returns NULL if offset is NULL.
+int offset = 1;
+if (effectiveArgs.Count > 1) { var ov = Evaluate(effectiveArgs[1], currentRow); if (ov is null) return null; offset = (int)ToLong(ov); }
 object? defaultVal = effectiveArgs.Count > 2 ? Evaluate(effectiveArgs[2], currentRow) : null;
 var idx = partition.IndexOf(currentRow);
 if (ignoreNulls)
@@ -1455,7 +1458,10 @@ if (funcName == "LEAD")
 {
 bool ignoreNulls = HasIgnoreNullsMarker(navArgs);
 var effectiveArgs = FilterIgnoreNullsMarker(navArgs);
-int offset = effectiveArgs.Count > 1 ? (int)ToLong(Evaluate(effectiveArgs[1], currentRow)) : 1;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions#lead
+//   Returns NULL if offset is NULL.
+int offset = 1;
+if (effectiveArgs.Count > 1) { var ov = Evaluate(effectiveArgs[1], currentRow); if (ov is null) return null; offset = (int)ToLong(ov); }
 object? defaultVal = effectiveArgs.Count > 2 ? Evaluate(effectiveArgs[2], currentRow) : null;
 var idx = partition.IndexOf(currentRow);
 if (ignoreNulls)
@@ -1481,7 +1487,11 @@ return targetIdx < partition.Count ? Evaluate(navArgs[0], partition[targetIdx]) 
 //   "If ignore_nulls is true, excludes NULL values from the calculation."
 if (funcName == "NTH_VALUE")
 {
-int n = navArgs.Count > 1 ? (int)ToLong(Evaluate(navArgs[1], currentRow)) : 1;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions#nth_value
+//   Returns NULL if any input is NULL.
+var nv = navArgs.Count > 1 ? Evaluate(navArgs[1], currentRow) : (object?)1L;
+if (nv is null) return null;
+int n = (int)ToLong(nv);
 if (n <= 0) throw new InvalidOperationException("NTH_VALUE requires a positive integer for N");
 var framedPartition = GetFramedPartition(wf, partition, currentRow);
 bool ignoreNulls = navArgs.Count > 2 && navArgs[2] is LiteralExpr litN && litN.Value as string == "__IGNORE_NULLS__";
@@ -4222,23 +4232,35 @@ var netFormat = result
 .Replace("%Y", "yyyy").Replace("%m", "MM").Replace("%d", "dd")
 .Replace("%H", "HH").Replace("%M", "mm").Replace("%S", "ss")
 .Replace("%F", "yyyy-MM-dd").Replace("%T", "HH:mm:ss")
-.Replace("%E4Y", "yyyy").Replace("%Z", "zzz").Replace("%I", "hh").Replace("%p", "tt").Replace("%y", "yy")
+.Replace("%E4Y", "yyyy").Replace("%I", "hh").Replace("%p", "tt").Replace("%y", "yy")
 .Replace("%b", "MMM").Replace("%B", "MMMM")
 .Replace("%A", "dddd").Replace("%a", "ddd");
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements#format_elements_date_time
+//   "%Z: The time zone name." The emulator always uses UTC.
+netFormat = netFormat.Replace("%Z", "UTC");
 return ts.ToString(netFormat, CultureInfo.InvariantCulture);
 }
 
 private static DateTimeOffset ParseTimestamp(string str, string format)
 {
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements#format_elements_date_time
+//   "%Z: The time zone name."
+// Handle %Z by replacing timezone name with offset in the input string
+var hasTimezone = format.Contains("%Z");
+if (hasTimezone)
+{
+	str = str.Replace("UTC", "+00:00");
+	format = format.Replace("%Z", "zzz");
+}
 var netFormat = format
 .Replace("%Y", "yyyy").Replace("%m", "MM").Replace("%d", "dd")
 .Replace("%H", "HH").Replace("%M", "mm").Replace("%S", "ss")
 .Replace("%F", "yyyy-MM-dd").Replace("%T", "HH:mm:ss")
-.Replace("%E4Y", "yyyy").Replace("%Z", "zzz").Replace("%I", "hh").Replace("%p", "tt").Replace("%y", "yy")
+.Replace("%E4Y", "yyyy").Replace("%I", "hh").Replace("%p", "tt").Replace("%y", "yy")
 .Replace("%b", "MMM").Replace("%B", "MMMM");
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#parse_timestamp
 //   "When no timezone is specified in the format string, the input is interpreted as UTC."
-var styles = format.Contains("%Z") ? DateTimeStyles.None : DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+var styles = hasTimezone ? DateTimeStyles.None : DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
 if (DateTimeOffset.TryParseExact(str, netFormat, CultureInfo.InvariantCulture, styles, out var result))
 return result;
 return DateTimeOffset.Parse(str, CultureInfo.InvariantCulture, styles);
