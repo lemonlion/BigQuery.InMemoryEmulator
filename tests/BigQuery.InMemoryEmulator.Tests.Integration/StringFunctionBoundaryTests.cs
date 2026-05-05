@@ -78,7 +78,9 @@ public class StringFunctionBoundaryTests : IAsyncLifetime
 	[Fact] public async Task Substr_SingleChar() => Assert.Equal("H", await Scalar("SELECT SUBSTR('Hello', 1, 1)"));
 	[Fact] public async Task Substr_EmptyInput() => Assert.Equal("", await Scalar("SELECT SUBSTR('', 1)"));
 	[Fact] public async Task Substr_NullInput() => Assert.Null(await Scalar("SELECT SUBSTR(NULL, 1)"));
-	[Fact] public async Task Substr_NullLen() => Assert.Equal("", await Scalar("SELECT SUBSTR('Hello', 1, NULL)"));
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#substr
+	//   "Returns NULL if any input is NULL."
+	[Fact] public async Task Substr_NullLen() => Assert.Null(await Scalar("SELECT SUBSTR('Hello', 1, NULL)"));
 
 	// ---- REVERSE boundaries ----
 	[Fact] public async Task Reverse_SingleChar() => Assert.Equal("a", await Scalar("SELECT REVERSE('a')"));

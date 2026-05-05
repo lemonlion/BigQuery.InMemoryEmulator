@@ -1904,9 +1904,14 @@ private object? EvaluateBetween(BetweenExpr btw, RowContext row)
 var val = Evaluate(btw.Expr, row);
 var low = Evaluate(btw.Low, row);
 var high = Evaluate(btw.High, row);
-if (val is null || low is null || high is null) return null;
-var result = CompareRaw(val, low) >= 0 && CompareRaw(val, high) <= 0;
-return result;
+// Ref: SQL standard three-valued logic: BETWEEN is (val >= low) AND (val <= high)
+//   NULL AND FALSE = FALSE; FALSE AND NULL = FALSE; NULL AND TRUE = NULL; TRUE AND NULL = NULL
+bool? geqLow = (val is null || low is null) ? null : CompareRaw(val, low) >= 0;
+bool? leqHigh = (val is null || high is null) ? null : CompareRaw(val, high) <= 0;
+// Three-valued AND: FALSE dominates NULL
+if (geqLow == false || leqHigh == false) return false;
+if (geqLow == null || leqHigh == null) return null;
+return true;
 }
 
 private object? EvaluateIn(InExpr inExpr, RowContext row)
@@ -1996,12 +2001,35 @@ private object? EvaluateLike(LikeExpr like, RowContext row)
 var val = Evaluate(like.Expr, row)?.ToString();
 var pattern = Evaluate(like.Pattern, row)?.ToString();
 if (val is null || pattern is null) return null;
-// Convert SQL LIKE to regex
-var regex = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
-.Replace("%", ".*").Replace("_", ".") + "$";
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#like_operator
 // "LIKE is case-sensitive."
-var result = System.Text.RegularExpressions.Regex.IsMatch(val, regex);
+// "The default escape character is the backslash."
+// Parse pattern char-by-char handling backslash escapes before converting to regex.
+var sb = new System.Text.StringBuilder("^");
+for (int i = 0; i < pattern.Length; i++)
+{
+    var ch = pattern[i];
+    if (ch == '\\' && i + 1 < pattern.Length)
+    {
+        // Escaped character: treat next char as literal
+        i++;
+        sb.Append(System.Text.RegularExpressions.Regex.Escape(pattern[i].ToString()));
+    }
+    else if (ch == '%')
+    {
+        sb.Append(".*");
+    }
+    else if (ch == '_')
+    {
+        sb.Append('.');
+    }
+    else
+    {
+        sb.Append(System.Text.RegularExpressions.Regex.Escape(ch.ToString()));
+    }
+}
+sb.Append('$');
+var result = System.Text.RegularExpressions.Regex.IsMatch(val, sb.ToString(), System.Text.RegularExpressions.RegexOptions.Singleline);
 return like.IsNot ? !result : result;
 }
 
@@ -2742,7 +2770,11 @@ private object? EvaluateSubstr(IReadOnlyList<SqlExpression> args, RowContext row
 {
 var str = Evaluate(args[0], row)?.ToString();
 if (str is null) return null;
-var pos = (int)ToLong(Evaluate(args[1], row));
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#substr
+//   "Returns NULL if any input is NULL."
+var posVal = Evaluate(args[1], row);
+if (posVal is null) return null;
+var pos = (int)ToLong(posVal);
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#substr
 //   "If position is 0, it is treated as 1."
 //   "If position is negative, the function counts from the end of value, where -1 indicates the last character."
@@ -2751,7 +2783,9 @@ var startIdx = pos > 0 ? pos - 1 : Math.Max(0, str.Length + pos);
 if (startIdx >= str.Length) return "";
 if (args.Count > 2)
 {
-var len = (int)ToLong(Evaluate(args[2], row));
+var lenVal = Evaluate(args[2], row);
+if (lenVal is null) return null;
+var len = (int)ToLong(lenVal);
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#substr
 //   "If length is negative, the function produces an error."
 if (len < 0) throw new InvalidOperationException("SUBSTR: negative length not allowed");
