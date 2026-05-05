@@ -3220,7 +3220,16 @@ private object? EvaluatePow(IReadOnlyList<SqlExpression> args, RowContext row)
 var a = Evaluate(args[0], row);
 var b = Evaluate(args[1], row);
 if (a is null || b is null) return null;
-return Math.Pow(ToDouble(a), ToDouble(b));
+var x = ToDouble(a);
+var y = ToDouble(b);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#pow
+//   "Generates an error if X is 0 and Y is a finite value less than 0."
+if (x == 0.0 && double.IsFinite(y) && y < 0)
+    throw new InvalidOperationException("POW: X is 0 and Y is a finite value less than 0");
+//   "Generates an error if X is a finite value less than 0 and Y is a noninteger."
+if (double.IsFinite(x) && x < 0 && y != Math.Floor(y))
+    throw new InvalidOperationException("POW: X is a finite value less than 0 and Y is a noninteger");
+return Math.Pow(x, y);
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#greatest
@@ -3454,7 +3463,11 @@ return part switch
 "MONTH" => (long)((date1.Year - date2.Year) * 12 + date1.Month - date2.Month),
 "YEAR" => (long)(date1.Year - date2.Year),
 "WEEK" => CountWeekBoundaries(date1, date2, DayOfWeek.Sunday),
+"ISOWEEK" => CountWeekBoundaries(date1, date2, DayOfWeek.Monday),
 "QUARTER" => (long)((date1.Year * 4 + (date1.Month - 1) / 3) - (date2.Year * 4 + (date2.Month - 1) / 3)),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date_diff
+//   "WEEK(<WEEKDAY>): counts the number of WEEKDAY boundaries between two date values."
+_ when part.StartsWith("WEEK_") => CountWeekBoundaries(date1, date2, Enum.Parse<DayOfWeek>(part.Substring(5), ignoreCase: true)),
 _ => (long)(date1.Date - date2.Date).TotalDays
 };
 }
@@ -3544,6 +3557,11 @@ return part switch
 "MINUTE" => (long)((TruncTimestamp(ts1, "MINUTE") - TruncTimestamp(ts2, "MINUTE")).TotalMinutes),
 "HOUR" => (long)((TruncTimestamp(ts1, "HOUR") - TruncTimestamp(ts2, "HOUR")).TotalHours),
 "DAY" => (long)((TruncTimestamp(ts1, "DAY") - TruncTimestamp(ts2, "DAY")).TotalDays),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_diff
+//   WEEK counts Sunday boundaries by default.
+"WEEK" => CountWeekBoundaries(ts1.UtcDateTime, ts2.UtcDateTime, DayOfWeek.Sunday),
+"ISOWEEK" => CountWeekBoundaries(ts1.UtcDateTime, ts2.UtcDateTime, DayOfWeek.Monday),
+_ when part.StartsWith("WEEK_") => CountWeekBoundaries(ts1.UtcDateTime, ts2.UtcDateTime, Enum.Parse<DayOfWeek>(part.Substring(5), ignoreCase: true)),
 _ => (long)diff.TotalSeconds
 };
 }
@@ -3903,9 +3921,13 @@ private object? EvaluateDatetimeDiff(IReadOnlyList<SqlExpression> args, RowConte
 		                   new DateTime(dt2.Year, dt2.Month, dt2.Day, dt2.Hour, 0, 0)).TotalHours),
 		"DAY" => (long)(dt1.Date - dt2.Date).TotalDays,
 		"WEEK" => CountWeekBoundaries(dt1, dt2, DayOfWeek.Sunday),
+		"ISOWEEK" => CountWeekBoundaries(dt1, dt2, DayOfWeek.Monday),
 		"MONTH" => (long)((dt1.Year - dt2.Year) * 12 + dt1.Month - dt2.Month),
 		"YEAR" => (long)(dt1.Year - dt2.Year),
 		"QUARTER" => (long)((dt1.Year * 4 + (dt1.Month - 1) / 3) - (dt2.Year * 4 + (dt2.Month - 1) / 3)),
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_diff
+		//   "WEEK(<WEEKDAY>): counts the number of WEEKDAY boundaries between two datetime values."
+		_ when part.StartsWith("WEEK_") => CountWeekBoundaries(dt1, dt2, Enum.Parse<DayOfWeek>(part.Substring(5), ignoreCase: true)),
 		_ => (long)(dt1.Date - dt2.Date).TotalDays
 	};
 }
@@ -4824,7 +4846,7 @@ catch { return null; }
 
 private static System.Text.Json.JsonElement? NavigateJsonPath(System.Text.Json.JsonElement root, string path)
 {
-// Handle JSONPath like "$.field", "$.field.subfield", "$[0]", "$.arr[1]"
+// Handle JSONPath like "$.field", "$.field.subfield", "$[0]", "$.arr[1]", "$[0][0][0]"
 var current = root;
 var trimmed = path.StartsWith("$") ? path.Substring(1) : path;
 if (trimmed.StartsWith(".")) trimmed = trimmed.Substring(1);
@@ -4840,7 +4862,7 @@ if (sb.Length > 0) segments.Add(sb.ToString());
 foreach (var segment in segments)
 {
     if (string.IsNullOrEmpty(segment)) continue;
-    // Check for array index e.g. "[1]" or "field[1]"
+    // Check for array index e.g. "[1]" or "field[1]" or "[0][1][2]"
     var bracketIdx = segment.IndexOf('[');
     if (bracketIdx >= 0)
     {
@@ -4851,11 +4873,17 @@ foreach (var segment in segments)
             if (!current.TryGetProperty(prop, out var next)) return null;
             current = next;
         }
-        var idxStr = segment.Substring(bracketIdx + 1, segment.Length - bracketIdx - 2);
-        if (!int.TryParse(idxStr, out var arrayIdx)) return null;
-        if (current.ValueKind != System.Text.Json.JsonValueKind.Array) return null;
-        if (arrayIdx < 0 || arrayIdx >= current.GetArrayLength()) return null;
-        current = current[arrayIdx];
+        // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#json_extract
+        //   Handle multiple consecutive array indices like [0][1][2]
+        var bracketPart = segment.Substring(bracketIdx);
+        var indexMatches = System.Text.RegularExpressions.Regex.Matches(bracketPart, @"\[(\d+)\]");
+        foreach (System.Text.RegularExpressions.Match m in indexMatches)
+        {
+            if (!int.TryParse(m.Groups[1].Value, out var arrayIdx)) return null;
+            if (current.ValueKind != System.Text.Json.JsonValueKind.Array) return null;
+            if (arrayIdx < 0 || arrayIdx >= current.GetArrayLength()) return null;
+            current = current[arrayIdx];
+        }
     }
     else
     {
