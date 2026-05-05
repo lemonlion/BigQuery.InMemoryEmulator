@@ -2437,7 +2437,9 @@ return name switch
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#ends_with
 //   "Returns NULL if value or suffix is NULL."
 "ENDS_WITH" => EvaluateEndsWith(args, row),
-"CONTAINS_SUBSTR" => Evaluate(args[0], row)?.ToString()?.Contains(Evaluate(args[1], row)?.ToString() ?? "", StringComparison.OrdinalIgnoreCase),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#contains_substr
+//   "Returns NULL if any input is NULL."
+"CONTAINS_SUBSTR" => EvaluateContainsSubstr(args, row),
 "STRPOS" => EvaluateStrPos(args, row),
 "INSTR" => EvaluateInstr(args, row),
 "LPAD" => EvaluateLpad(args, row),
@@ -2894,6 +2896,16 @@ if (len < 0) throw new InvalidOperationException("SUBSTR: negative length not al
 return str.Substring(startIdx, Math.Min(len, str.Length - startIdx));
 }
 return str[startIdx..];
+}
+
+private object? EvaluateContainsSubstr(IReadOnlyList<SqlExpression> args, RowContext row)
+{
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#contains_substr
+//   "Returns NULL if any input is NULL."
+var expr = Evaluate(args[0], row)?.ToString();
+var search = Evaluate(args[1], row)?.ToString();
+if (expr is null || search is null) return null;
+return expr.Contains(search, StringComparison.OrdinalIgnoreCase);
 }
 
 private object? EvaluateStrPos(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3468,6 +3480,9 @@ private object? EvaluateDateConstructor(IReadOnlyList<SqlExpression> args, RowCo
 if (args.Count == 1)
 {
 var val = Evaluate(args[0], row);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date
+//   "Returns NULL if any input is NULL."
+if (val is null) return null;
 return val switch
 {
 DateOnly d => d,
@@ -3493,6 +3508,9 @@ private object? EvaluateDateTimeConstructor(IReadOnlyList<SqlExpression> args, R
 if (args.Count == 1)
 {
 var val = Evaluate(args[0], row);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime
+//   "Returns NULL if any input is NULL."
+if (val is null) return null;
 return val switch
 {
 DateTime dt => dt,
@@ -3505,8 +3523,13 @@ _ => DateTime.Parse(val?.ToString() ?? "", CultureInfo.InvariantCulture)
 }
 if (args.Count == 2)
 {
-var date = ToDateTime(Evaluate(args[0], row));
-var time = Evaluate(args[1], row)?.ToString() ?? "00:00:00";
+var dateVal = Evaluate(args[0], row);
+var timeVal = Evaluate(args[1], row);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime
+//   "Returns NULL if any input is NULL."
+if (dateVal is null || timeVal is null) return null;
+var date = ToDateTime(dateVal);
+var time = timeVal.ToString() ?? "00:00:00";
 var ts = TimeSpan.Parse(time, CultureInfo.InvariantCulture);
 return date.Date.Add(ts);
 }
@@ -3525,6 +3548,9 @@ return new DateTime((int)ToLong(yv), (int)ToLong(mov), (int)ToLong(dv), hh, mi, 
 private object? EvaluateTimestampConstructor(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var val = Evaluate(args[0], row);
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp
+//   "Returns NULL if any input is NULL."
+if (val is null) return null;
 return val switch
 {
 DateTimeOffset dto => dto,
@@ -5167,7 +5193,11 @@ try
 {
 	var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(json);
 	if (dict is null) return json;
-	var path = Evaluate(args[1], row)?.ToString()?.TrimStart('$', '.') ?? "";
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#json_set
+	//   "If json_path is SQL NULL, the json_path_value_pair operation is ignored."
+	var pathRaw = Evaluate(args[1], row)?.ToString();
+	if (pathRaw is null) return json;
+	var path = pathRaw.TrimStart('$', '.');
 	var value = Evaluate(args[2], row);
 	dict[path] = value;
 	return System.Text.Json.JsonSerializer.Serialize(dict);
