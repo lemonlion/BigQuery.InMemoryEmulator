@@ -1808,14 +1808,14 @@ BinaryOp.Gte => left is null || right is null ? null : CompareRaw(left, right) >
 //   "DATE + INT64 → DATE: adds a number of days to the date."
 BinaryOp.Add => left is DateOnly dLeft && right is long rDays ? dLeft.AddDays((int)rDays)
     : right is DateOnly dRight && left is long lDays ? dRight.AddDays((int)lDays)
-    : ArithmeticOp(left, right, (a, b) => a + b, (a, b) => a + b),
+    : ArithmeticOp(left, right, (a, b) => checked(a + b), (a, b) => a + b),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#date_arithmetics
 //   "DATE - INT64 → DATE: subtracts a number of days from the date."
 //   "DATE - DATE → INT64: returns the number of days between two dates."
 BinaryOp.Sub => left is DateOnly dSubLeft && right is long rSubDays ? dSubLeft.AddDays(-(int)rSubDays)
     : left is DateOnly dSubL && right is DateOnly dSubR ? (object)(long)(dSubL.ToDateTime(TimeOnly.MinValue) - dSubR.ToDateTime(TimeOnly.MinValue)).Days
-    : ArithmeticOp(left, right, (a, b) => a - b, (a, b) => a - b),
-BinaryOp.Mul => ArithmeticOp(left, right, (a, b) => a * b, (a, b) => a * b),
+    : ArithmeticOp(left, right, (a, b) => checked(a - b), (a, b) => a - b),
+BinaryOp.Mul => ArithmeticOp(left, right, (a, b) => checked(a * b), (a, b) => a * b),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#division
 //   "Division always returns a FLOAT64, even for integer operands."
 BinaryOp.Div => left is null || right is null ? null
@@ -7992,6 +7992,8 @@ private static object? ArithmeticOp(object? left, object? right,
 Func<long, long, long> longOp, Func<double, double, double> doubleOp)
 {
 if (left is null || right is null) return null;
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#arithmetic_operators
+//   "All operators will throw an error if the computation result overflows."
 if (left is long la && right is long lb) return longOp(la, lb);
 return doubleOp(ToDouble(left), ToDouble(right));
 }
@@ -8000,7 +8002,9 @@ private static object? Negate(object? val)
 {
 return val switch
 {
-long l => -l,
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#arithmetic_operators
+//   "Unary minus: negates X. Throws error on overflow."
+long l => checked(-l),
 double d => -d,
 null => null,
 _ => -ToDouble(val)
