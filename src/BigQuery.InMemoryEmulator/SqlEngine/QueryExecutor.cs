@@ -3933,14 +3933,40 @@ private object? EvaluateLastDay(IReadOnlyList<SqlExpression> args, RowContext ro
 	var part = args.Count > 1
 		? Evaluate(args[1], row)?.ToString()?.ToUpperInvariant() ?? "MONTH"
 		: "MONTH";
-	var result = part switch
+	DateTime result;
+	if (part.StartsWith("WEEK_"))
 	{
-		"YEAR" => new DateTime(date.Year, 12, 31),
-		"QUARTER" => new DateTime(date.Year, ((date.Month - 1) / 3 + 1) * 3, 1).AddMonths(1).AddDays(-1),
-		"MONTH" => new DateTime(date.Year, date.Month, DateTime.DaysInMonth(date.Year, date.Month)),
-		"WEEK" => date.AddDays(6 - (int)date.DayOfWeek), // week starts Sunday, last day is Saturday
-		_ => new DateTime(date.Year, date.Month, DateTime.DaysInMonth(date.Year, date.Month)),
-	};
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#last_day
+		//   "LAST_DAY(date_expression, WEEK(WEEKDAY)): Returns the last day of the week
+		//    containing date_expression. Weeks begin on WEEKDAY."
+		var weekdayName = part["WEEK_".Length..];
+		var startDay = weekdayName switch
+		{
+			"SUNDAY" => DayOfWeek.Sunday,
+			"MONDAY" => DayOfWeek.Monday,
+			"TUESDAY" => DayOfWeek.Tuesday,
+			"WEDNESDAY" => DayOfWeek.Wednesday,
+			"THURSDAY" => DayOfWeek.Thursday,
+			"FRIDAY" => DayOfWeek.Friday,
+			"SATURDAY" => DayOfWeek.Saturday,
+			_ => DayOfWeek.Sunday
+		};
+		// Last day of week = (startDay + 6) % 7
+		var lastDay = (DayOfWeek)(((int)startDay + 6) % 7);
+		var daysToAdd = ((int)lastDay - (int)date.DayOfWeek + 7) % 7;
+		result = date.AddDays(daysToAdd);
+	}
+	else
+	{
+		result = part switch
+		{
+			"YEAR" => new DateTime(date.Year, 12, 31),
+			"QUARTER" => new DateTime(date.Year, ((date.Month - 1) / 3 + 1) * 3, 1).AddMonths(1).AddDays(-1),
+			"MONTH" => new DateTime(date.Year, date.Month, DateTime.DaysInMonth(date.Year, date.Month)),
+			"WEEK" => date.AddDays(((int)DayOfWeek.Saturday - (int)date.DayOfWeek + 7) % 7),
+			_ => new DateTime(date.Year, date.Month, DateTime.DaysInMonth(date.Year, date.Month)),
+		};
+	}
 	return DateOnly.FromDateTime(result);
 }
 
@@ -5222,11 +5248,56 @@ return (long?)val.ToString()?.Length;
 //   "Returns the 1-based position of the first occurrence of a regex match."
 private object? EvaluateRegexpInstr(IReadOnlyList<SqlExpression> args, RowContext row)
 {
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_instr
+//   REGEXP_INSTR(source_value, regexp[, position[, occurrence[, occurrence_position]]])
+//   "Returns the lowest 1-based position of a regular expression, regexp, in source_value."
+//   "If position is specified, the search starts at this position in source_value."
+//   "If occurrence is specified, the search returns the position of a specific instance."
+//   "occurrence_position: 0 returns start position, 1 returns end position + 1."
 var str = Evaluate(args[0], row)?.ToString();
 var pattern = Evaluate(args[1], row)?.ToString();
 if (str is null || pattern is null) return null;
-var m = System.Text.RegularExpressions.Regex.Match(str, pattern);
-return m.Success ? (long)(m.Index + 1) : 0L;
+
+int position = 1;
+if (args.Count >= 3)
+{
+    var posVal = Evaluate(args[2], row);
+    if (posVal is null) return null;
+    position = (int)ToLong(posVal);
+    if (position <= 0) throw new InvalidOperationException("REGEXP_INSTR position must be positive");
+}
+
+int occurrence = 1;
+if (args.Count >= 4)
+{
+    var occVal = Evaluate(args[3], row);
+    if (occVal is null) return null;
+    occurrence = (int)ToLong(occVal);
+    if (occurrence <= 0) throw new InvalidOperationException("REGEXP_INSTR occurrence must be positive");
+}
+
+int occurrencePosition = 0;
+if (args.Count >= 5)
+{
+    var opVal = Evaluate(args[4], row);
+    if (opVal is null) return null;
+    occurrencePosition = (int)ToLong(opVal);
+    if (occurrencePosition != 0 && occurrencePosition != 1)
+        throw new InvalidOperationException("REGEXP_INSTR occurrence_position must be 0 or 1");
+}
+
+if (position > str.Length) return 0L;
+
+var searchStr = str[(position - 1)..];
+var matches = System.Text.RegularExpressions.Regex.Matches(searchStr, pattern);
+if (occurrence > matches.Count) return 0L;
+
+var match = matches[occurrence - 1];
+var matchStart = match.Index + position; // 1-based position in original string
+if (occurrencePosition == 0)
+    return (long)matchStart;
+else
+    return (long)(matchStart + match.Length);
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_substr
