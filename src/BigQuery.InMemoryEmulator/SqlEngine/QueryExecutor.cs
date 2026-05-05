@@ -3236,9 +3236,10 @@ return val switch
 {
 DateOnly d => d,
 DateTime dt => DateOnly.FromDateTime(dt),
-DateTimeOffset dto => DateOnly.FromDateTime(dto.Date),
-// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_date
-//   BigQuery only accepts ISO 8601 date format (yyyy-MM-dd) for CAST to DATE.
+DateTimeOffset dto => DateOnly.FromDateTime(dto.UtcDateTime),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date
+//   "Extracts the DATE from a TIMESTAMP expression. It supports an optional parameter to
+//    specify a time zone. If no time zone is specified, the default time zone, UTC, is used."
 string s => DateOnly.ParseExact(s.Length > 10 ? s[..10] : s, "yyyy-MM-dd", CultureInfo.InvariantCulture),
 _ => DateOnly.FromDateTime(DateTime.Parse(val?.ToString() ?? "", CultureInfo.InvariantCulture))
 };
@@ -3256,7 +3257,9 @@ var val = Evaluate(args[0], row);
 return val switch
 {
 DateTime dt => dt,
-DateTimeOffset dto => dto.DateTime,
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime
+//   "Constructs a DATETIME value ... If TIMESTAMP, the datetime is extracted at UTC."
+DateTimeOffset dto => dto.UtcDateTime,
 string s => DateTime.Parse(s, CultureInfo.InvariantCulture),
 _ => DateTime.Parse(val?.ToString() ?? "", CultureInfo.InvariantCulture)
 };
@@ -3662,10 +3665,12 @@ return ParseTimestamp(str, format);}
 
 private object? EvaluateFormatDate(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-var format = Evaluate(args[0], row)?.ToString() ?? "";
-var dateVal = Evaluate(args[1], row);
+var formatVal = Evaluate(args[0], row);
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#format_date
 //   Returns NULL if any argument is NULL.
+if (formatVal is null) return null;
+var format = formatVal.ToString() ?? "";
+var dateVal = Evaluate(args[1], row);
 if (dateVal is null) return null;
 var date = ToDateTime(dateVal);
 return FormatTimestamp(new DateTimeOffset(date, TimeSpan.Zero), format);
@@ -3739,7 +3744,9 @@ private object? EvaluateUnixMicros(IReadOnlyList<SqlExpression> args, RowContext
 //   "Interprets int64_expression as the number of days since 1970-01-01."
 private object? EvaluateDateFromUnixDate(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var days = ToLong(Evaluate(args[0], row));
+	var rawDays = Evaluate(args[0], row);
+	if (rawDays is null) return null;
+	var days = ToLong(rawDays);
 	return DateOnly.FromDateTime(new DateTime(1970, 1, 1).AddDays(days));
 }
 
@@ -3747,7 +3754,9 @@ private object? EvaluateDateFromUnixDate(IReadOnlyList<SqlExpression> args, RowC
 //   "Returns the number of days since 1970-01-01."
 private object? EvaluateUnixDate(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var date = ToDateTime(Evaluate(args[0], row));
+	var rawDate = Evaluate(args[0], row);
+	if (rawDate is null) return null;
+	var date = ToDateTime(rawDate);
 	return (long)(date.Date - new DateTime(1970, 1, 1)).TotalDays;
 }
 
@@ -3837,7 +3846,9 @@ private object? EvaluateDatetimeDiff(IReadOnlyList<SqlExpression> args, RowConte
 //   "Truncates a DATETIME value at a particular granularity."
 private object? EvaluateDatetimeTrunc(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var date = ToDateTime(Evaluate(args[0], row));
+	var rawDate = Evaluate(args[0], row);
+	if (rawDate is null) return null;
+	var date = ToDateTime(rawDate);
 	var part = Evaluate(args[1], row)?.ToString()?.ToUpperInvariant() ?? "DAY";
 	return part switch
 	{
@@ -3934,8 +3945,12 @@ private static TimeSpan ToTimeSpan(object? val)
 //   "This function automatically adjusts when values fall outside of the 00:00:00 to 24:00:00 boundary."
 private object? EvaluateTimeAdd(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var time = ToTimeSpan(Evaluate(args[0], row));
-	var interval = ToLong(Evaluate(args[1], row));
+	var rawTime = Evaluate(args[0], row);
+	if (rawTime is null) return null;
+	var time = ToTimeSpan(rawTime);
+	var rawInterval = Evaluate(args[1], row);
+	if (rawInterval is null) return null;
+	var interval = ToLong(rawInterval);
 	var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "SECOND";
 	var result = AddToTimeSpan(time, interval, part);
 	return WrapTime(result);
@@ -3945,8 +3960,12 @@ private object? EvaluateTimeAdd(IReadOnlyList<SqlExpression> args, RowContext ro
 //   "Subtracts int64_expression units of part from the TIME object."
 private object? EvaluateTimeSub(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var time = ToTimeSpan(Evaluate(args[0], row));
-	var interval = ToLong(Evaluate(args[1], row));
+	var rawTime = Evaluate(args[0], row);
+	if (rawTime is null) return null;
+	var time = ToTimeSpan(rawTime);
+	var rawInterval = Evaluate(args[1], row);
+	if (rawInterval is null) return null;
+	var interval = ToLong(rawInterval);
 	var part = Evaluate(args[2], row)?.ToString()?.ToUpperInvariant() ?? "SECOND";
 	var result = AddToTimeSpan(time, -interval, part);
 	return WrapTime(result);
@@ -4003,7 +4022,9 @@ private object? EvaluateTimeDiff(IReadOnlyList<SqlExpression> args, RowContext r
 //   "Truncates a TIME value at a particular granularity."
 private object? EvaluateTimeTrunc(IReadOnlyList<SqlExpression> args, RowContext row)
 {
-	var time = ToTimeSpan(Evaluate(args[0], row));
+	var rawTime = Evaluate(args[0], row);
+	if (rawTime is null) return null;
+	var time = ToTimeSpan(rawTime);
 	var part = Evaluate(args[1], row)?.ToString()?.ToUpperInvariant() ?? "SECOND";
 	return part switch
 	{
@@ -4412,8 +4433,14 @@ if (startVal is null || endVal is null) return null;
 var startTs = startVal is DateTimeOffset so ? so : DateTimeOffset.Parse(startVal.ToString()!, System.Globalization.CultureInfo.InvariantCulture);
 var endTs = endVal is DateTimeOffset eo ? eo : DateTimeOffset.Parse(endVal.ToString()!, System.Globalization.CultureInfo.InvariantCulture);
 
-int step = args.Count >= 3 ? (int)ToLong(Evaluate(args[2], row)) : 1;
+int step = 1;
 string part = args.Count >= 4 ? Evaluate(args[3], row)?.ToString()?.ToUpperInvariant() ?? "DAY" : "DAY";
+if (args.Count >= 3)
+{
+    var stepVal = Evaluate(args[2], row);
+    if (stepVal is null) return null;
+    step = (int)ToLong(stepVal);
+}
 if (step == 0) throw new InvalidOperationException("GENERATE_TIMESTAMP_ARRAY step cannot be 0");
 
 var result = new List<object?>();
