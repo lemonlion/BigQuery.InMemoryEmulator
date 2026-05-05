@@ -2303,8 +2303,12 @@ return name switch
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#concat
 //   "If any input argument is NULL, CONCAT returns NULL."
 "CONCAT" => EvaluateConcatString(args, row),
-"STARTS_WITH" => Evaluate(args[0], row)?.ToString()?.StartsWith(Evaluate(args[1], row)?.ToString() ?? "", StringComparison.Ordinal),
-"ENDS_WITH" => Evaluate(args[0], row)?.ToString()?.EndsWith(Evaluate(args[1], row)?.ToString() ?? "", StringComparison.Ordinal),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#starts_with
+//   "Returns NULL if value or prefix is NULL."
+"STARTS_WITH" => EvaluateStartsWith(args, row),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#ends_with
+//   "Returns NULL if value or suffix is NULL."
+"ENDS_WITH" => EvaluateEndsWith(args, row),
 "CONTAINS_SUBSTR" => Evaluate(args[0], row)?.ToString()?.Contains(Evaluate(args[1], row)?.ToString() ?? "", StringComparison.OrdinalIgnoreCase),
 "STRPOS" => EvaluateStrPos(args, row),
 "INSTR" => EvaluateInstr(args, row),
@@ -2756,6 +2760,22 @@ var str = Evaluate(args[0], row)?.ToString();
 var sub = Evaluate(args[1], row)?.ToString();
 if (str is null || sub is null) return null;
 return (long)(str.IndexOf(sub, StringComparison.Ordinal) + 1);
+}
+
+private object? EvaluateStartsWith(IReadOnlyList<SqlExpression> args, RowContext row)
+{
+var str = Evaluate(args[0], row)?.ToString();
+var prefix = Evaluate(args[1], row)?.ToString();
+if (str is null || prefix is null) return null;
+return str.StartsWith(prefix, StringComparison.Ordinal);
+}
+
+private object? EvaluateEndsWith(IReadOnlyList<SqlExpression> args, RowContext row)
+{
+var str = Evaluate(args[0], row)?.ToString();
+var suffix = Evaluate(args[1], row)?.ToString();
+if (str is null || suffix is null) return null;
+return str.EndsWith(suffix, StringComparison.Ordinal);
 }
 
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#instr
@@ -3474,6 +3494,7 @@ var result = part switch
 //   "ISOYEAR: Returns the Monday of the first week of the ISO year."
 "ISOYEAR" => GetIsoYearStart(date),
 "DAY" => date.Date,
+_ when part.StartsWith("WEEK_") => TruncToWeekday(date, part),
 _ => date.Date
 };
 return DateOnly.FromDateTime(result);
@@ -3487,6 +3508,16 @@ private static DateTime GetIsoYearStart(DateTime date)
 	var isoYear = System.Globalization.ISOWeek.GetYear(date);
 	// First day of ISO year is the Monday of ISO week 1
 	return System.Globalization.ISOWeek.ToDateTime(isoYear, 1, DayOfWeek.Monday);
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date_trunc
+//   "WEEK(<WEEKDAY>): Truncates date_expression to the preceding WEEKDAY."
+private static DateTime TruncToWeekday(DateTime date, string part)
+{
+	var dayName = part.Substring(5); // e.g. "MONDAY" from "WEEK_MONDAY"
+	var targetDow = Enum.Parse<DayOfWeek>(dayName, ignoreCase: true);
+	var daysToSubtract = ((int)date.DayOfWeek - (int)targetDow + 7) % 7;
+	return date.AddDays(-daysToSubtract).Date;
 }
 
 private object? EvaluateTimestampTrunc(IReadOnlyList<SqlExpression> args, RowContext row)
@@ -3543,6 +3574,7 @@ return part switch
 // "MICROSECOND: Truncates to the microsecond boundary."
 "MICROSECOND" => new DateTimeOffset(ts.Year, ts.Month, ts.Day, ts.Hour, ts.Minute, ts.Second, offset)
 	.AddTicks(ts.Microsecond * TimeSpan.TicksPerMillisecond / 1000 + ts.Millisecond * TimeSpan.TicksPerMillisecond),
+_ when part.StartsWith("WEEK_") => new DateTimeOffset(TruncToWeekday(ts.DateTime, part), offset),
 _ => new DateTimeOffset(ts.Year, ts.Month, ts.Day, 0, 0, 0, offset)
 };
 }
@@ -3564,6 +3596,7 @@ return part switch
     .AddTicks(dt.Millisecond * TimeSpan.TicksPerMillisecond),
 "MICROSECOND" => new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second)
     .AddTicks(dt.Millisecond * TimeSpan.TicksPerMillisecond + (dt.Microsecond % 1000) * 10),
+_ when part.StartsWith("WEEK_") => TruncToWeekday(dt, part),
 _ => dt.Date
 };
 }
@@ -3785,6 +3818,7 @@ private object? EvaluateDatetimeTrunc(IReadOnlyList<SqlExpression> args, RowCont
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_trunc
 		//   "ISOYEAR: Truncates to the start of the ISO year (Monday of ISO week 1)."
 		"ISOYEAR" => GetIsoYearStart(date),
+		_ when part.StartsWith("WEEK_") => TruncToWeekday(date, part),
 		_ => date.Date
 	};
 }
@@ -6527,6 +6561,10 @@ private object? EvaluateStringAgg(AggregateCall agg, List<RowContext> rows)
     // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#string_agg
     //   "Returns NULL if there are zero input rows or expression evaluates to NULL for all rows."
     if (values.Count == 0) return null;
+    // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#string_agg
+    //   "LIMIT n: specifies the maximum number of value inputs in the result."
+    if (agg.AggLimit.HasValue)
+        values = values.Take(agg.AggLimit.Value).ToList();
     return string.Join(separator, values);
 }
 
