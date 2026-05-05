@@ -3040,23 +3040,37 @@ return val.ToString("F6", CultureInfo.InvariantCulture);
 }
 case 'e':
 {
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
+//   "%e" formats as scientific notation with lowercase e, 2-digit exponent (e.g., 3.926500e+02)
 double val = arg is double d ? d : Convert.ToDouble(arg, CultureInfo.InvariantCulture);
-if (precision >= 0) return val.ToString("e" + precision, CultureInfo.InvariantCulture);
-return val.ToString("e", CultureInfo.InvariantCulture);
+string raw = precision >= 0 ? val.ToString("e" + precision, CultureInfo.InvariantCulture) : val.ToString("e6", CultureInfo.InvariantCulture);
+return NormalizeExponent(raw);
 }
 case 'E':
 {
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
-//   "%E" formats as scientific notation with uppercase E
+//   "%E" formats as scientific notation with uppercase E, 2-digit exponent (e.g., 3.926500E+02)
 double val = arg is double d ? d : Convert.ToDouble(arg, CultureInfo.InvariantCulture);
-if (precision >= 0) return val.ToString("E" + precision, CultureInfo.InvariantCulture);
-return val.ToString("E", CultureInfo.InvariantCulture);
+string raw = precision >= 0 ? val.ToString("E" + precision, CultureInfo.InvariantCulture) : val.ToString("E6", CultureInfo.InvariantCulture);
+return NormalizeExponent(raw);
 }
 case 'g':
 {
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
+//   "%g" uses decimal or scientific notation (lowercase e) depending on exponent. Default precision=6.
 double val = arg is double d ? d : Convert.ToDouble(arg, CultureInfo.InvariantCulture);
-if (precision >= 0) return val.ToString("G" + precision, CultureInfo.InvariantCulture);
-return val.ToString("G", CultureInfo.InvariantCulture);
+int p = precision >= 0 ? precision : 6;
+string raw = val.ToString("G" + p, CultureInfo.InvariantCulture);
+return NormalizeExponent(raw.Replace("E+", "e+").Replace("E-", "e-"));
+}
+case 'G':
+{
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
+//   "%G" uses decimal or scientific notation (uppercase E) depending on exponent. Default precision=6.
+double val = arg is double d ? d : Convert.ToDouble(arg, CultureInfo.InvariantCulture);
+int p = precision >= 0 ? precision : 6;
+string raw = val.ToString("G" + p, CultureInfo.InvariantCulture);
+return NormalizeExponent(raw);
 }
 case 's':
 {
@@ -3069,12 +3083,29 @@ if (width > 0 && leftAlign) return sval.PadRight(width);
 if (width > 0) return sval.PadLeft(width);
 return sval;
 }
-case 't': case 'T':
+case 't':
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
+//   "%t" produces a readable form of the value (unquoted for strings).
+return ConvertToString(arg) ?? "NULL";
+case 'T':
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
+//   "%T" produces a valid SQL literal: strings are single-quoted.
+if (arg is string sArg) return "'" + sArg + "'";
 return ConvertToString(arg) ?? "NULL";
 default:
 return ConvertToString(arg) ?? "NULL";
 }
 }
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
+//   BigQuery scientific notation uses exactly 2-digit exponents (e.g., e+02, e-01).
+//   .NET may produce 3-digit exponents (e+002). Normalize to 2 digits.
+private static string NormalizeExponent(string s)
+{
+	// Match patterns like e+002 or E-001 and reduce to e+02 or E-01
+	return System.Text.RegularExpressions.Regex.Replace(s, @"([eE])([+-])0(\d{2})", "$1$2$3");
+}
+
 private object? EvaluateRegexpContains(IReadOnlyList<SqlExpression> args, RowContext row)
 {
 var str = Evaluate(args[0], row)?.ToString();
