@@ -292,8 +292,9 @@ public class Round24BugFixTests : IAsyncLifetime
 	[Fact]
 	public async Task CastTimeAsString_PartialFractionalSeconds()
 	{
-		// Fractional seconds with trailing zeros should be trimmed
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+		//   Trailing zeros in fractional seconds are trimmed.
 		var result = await S("SELECT CAST(TIME '12:30:45.100000' AS STRING)");
-		Assert.Equal("12:30:45.100000", result);
+		Assert.Equal("12:30:45.1", result);
 	}
 }

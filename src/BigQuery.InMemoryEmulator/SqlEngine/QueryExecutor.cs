@@ -3075,6 +3075,10 @@ if (i < fmt.Length && argIdx < fmtArgs.Length)
 char type = fmt[i]; i++;
 string spec = fmt[start..i]; // e.g., "%.2f", "%03d", "%4d"
 var arg = fmtArgs[argIdx++];
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#format_string
+//   "The function generally produces a NULL value if a NULL argument is present."
+//   "However... if the format specifier is %t or %T, a NULL value produces 'NULL'"
+if (arg is null && type is not 't' and not 'T') return null;
 result.Append(FormatOneArg(spec, type, precision, arg));
 }
 }
@@ -7017,9 +7021,18 @@ private object? EvaluateStringAgg(AggregateCall agg, List<RowContext> rows)
 {
     // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#string_agg
     //   "Returns a value (either STRING or BYTES) obtained by concatenating non-null values."
-    var separator = agg.ExtraArgs is { Count: > 0 }
-        ? Evaluate(agg.ExtraArgs[0], rows[0])?.ToString() ?? ","
-        : ",";
+    //   NULL delimiter propagates NULL per general NULL semantics.
+    string separator;
+    if (agg.ExtraArgs is { Count: > 0 })
+    {
+        var sepVal = Evaluate(agg.ExtraArgs[0], rows[0])?.ToString();
+        if (sepVal is null) return null;
+        separator = sepVal;
+    }
+    else
+    {
+        separator = ",";
+    }
     var values = rows.Select(r => Evaluate(agg.Arg!, r)?.ToString())
         .Where(v => v is not null).ToList();
     if (agg.Distinct)
@@ -8591,14 +8604,12 @@ DateTimeOffset dto => FormatTimestampAsString(dto),
 DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
 //   "Casting from a datetime type to a string is of the form YYYY-MM-DD HH:MM:SS."
-DateTime dt => dt.TimeOfDay.Ticks % TimeSpan.TicksPerSecond != 0
-	? dt.ToString("yyyy-MM-dd HH:mm:ss.ffffff", CultureInfo.InvariantCulture)
-	: dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+//   Trailing zeros in fractional seconds are trimmed.
+DateTime dt => FormatDatetimeAsString(dt),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
 //   "Casting from a time type to a string is of the form HH:MM:SS[.FFFFFF]."
-TimeSpan ts => ts.Ticks % TimeSpan.TicksPerSecond != 0
-	? ts.ToString(@"hh\:mm\:ss\.ffffff", CultureInfo.InvariantCulture)
-	: ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture),
+//   Trailing zeros in fractional seconds are trimmed.
+TimeSpan ts => FormatTimeAsString(ts),
 _ => val.ToString()
 };
 }
@@ -8629,6 +8640,41 @@ private static string FormatTimestampAsString(DateTimeOffset dto)
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Vector distance helpers
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+//   CAST(DATETIME AS STRING) format: "YYYY-MM-DD HH:MM:SS[.DDDDDD]"
+//   Trailing zeros in fractional seconds are trimmed.
+private static string FormatDatetimeAsString(DateTime dt)
+{
+    var sb = new System.Text.StringBuilder();
+    sb.Append(dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+    long ticks = dt.TimeOfDay.Ticks % TimeSpan.TicksPerSecond;
+    if (ticks > 0)
+    {
+        var microseconds = ticks / (TimeSpan.TicksPerMillisecond / 1000);
+        var frac = microseconds.ToString("D6").TrimEnd('0');
+        sb.Append('.').Append(frac);
+    }
+    return sb.ToString();
+}
+
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+//   CAST(TIME AS STRING) format: "HH:MM:SS[.DDDDDD]"
+//   Trailing zeros in fractional seconds are trimmed.
+private static string FormatTimeAsString(TimeSpan ts)
+{
+    var sb = new System.Text.StringBuilder();
+    sb.Append(ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture));
+    long ticks = ts.Ticks % TimeSpan.TicksPerSecond;
+    if (ticks > 0)
+    {
+        var microseconds = ticks / (TimeSpan.TicksPerMillisecond / 1000);
+        var frac = microseconds.ToString("D6").TrimEnd('0');
+        sb.Append('.').Append(frac);
+    }
+    return sb.ToString();
+}
 
 private object? EvaluateVectorDistanceFunction(string name, IReadOnlyList<SqlExpression> args, RowContext row)
 {

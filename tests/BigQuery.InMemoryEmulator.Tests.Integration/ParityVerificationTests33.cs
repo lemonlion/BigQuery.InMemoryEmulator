@@ -48,10 +48,12 @@ public class ParityVerificationTests33 : IAsyncLifetime
 	//   "MILLISECOND: Truncates to the millisecond."
 	// ───────────────────────────────────────────────────────────────────────────
 
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+	//   Trailing zeros in fractional seconds are trimmed.
 	[Fact] public async Task DatetimeTrunc_Millisecond()
 	{
 		var result = await S("SELECT CAST(DATETIME_TRUNC(DATETIME '2024-06-15 12:34:56.789012', MILLISECOND) AS STRING)");
-		Assert.Equal("2024-06-15 12:34:56.789000", result);
+		Assert.Equal("2024-06-15 12:34:56.789", result);
 	}
 
 	[Fact] public async Task DatetimeTrunc_Microsecond()
@@ -66,10 +68,12 @@ public class ParityVerificationTests33 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_add
 	// ───────────────────────────────────────────────────────────────────────────
 
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+	//   Trailing zeros in fractional seconds are trimmed.
 	[Fact] public async Task DatetimeAdd_Millisecond()
 	{
 		var result = await S("SELECT CAST(DATETIME_ADD(DATETIME '2024-01-01 00:00:00', INTERVAL 500 MILLISECOND) AS STRING)");
-		Assert.Equal("2024-01-01 00:00:00.500000", result);
+		Assert.Equal("2024-01-01 00:00:00.5", result);
 	}
 
 	[Fact] public async Task DatetimeAdd_Microsecond()
@@ -82,10 +86,12 @@ public class ParityVerificationTests33 : IAsyncLifetime
 	// DATETIME_SUB with MILLISECOND
 	// ───────────────────────────────────────────────────────────────────────────
 
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+	//   Trailing zeros in fractional seconds are trimmed.
 	[Fact] public async Task DatetimeSub_Millisecond()
 	{
 		var result = await S("SELECT CAST(DATETIME_SUB(DATETIME '2024-01-01 00:00:01', INTERVAL 500 MILLISECOND) AS STRING)");
-		Assert.Equal("2024-01-01 00:00:00.500000", result);
+		Assert.Equal("2024-01-01 00:00:00.5", result);
 	}
 
 	// ───────────────────────────────────────────────────────────────────────────

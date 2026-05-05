@@ -71,7 +71,10 @@ public class FormatFunctionDeepTests : IAsyncLifetime
 	// ============================================================
 	// FORMAT() with special values
 	// ============================================================
-	[Fact] public async Task Format_NullValue() => Assert.Equal("NULL", await Scalar("SELECT FORMAT('%s', NULL)"));
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#format_string
+	//   "The function generally produces a NULL value if a NULL argument is present."
+	//   Exception: %t and %T produce literal 'NULL' text.
+	[Fact] public async Task Format_NullValue() => Assert.Null(await Scalar("SELECT FORMAT('%s', NULL)"));
 	[Fact] public async Task Format_EmptyString() => Assert.Equal("", await Scalar("SELECT FORMAT('%s', '')"));
 	[Fact] public async Task Format_Percent() => Assert.Equal("100%", await Scalar("SELECT FORMAT('%d%%', 100)"));
 
