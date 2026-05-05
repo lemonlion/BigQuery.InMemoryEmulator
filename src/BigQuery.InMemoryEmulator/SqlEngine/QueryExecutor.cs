@@ -1839,7 +1839,9 @@ BinaryOp.Div => left is null || right is null ? null
 BinaryOp.Mod => ArithmeticOp(left, right, (a, b) => a % b, (a, b) => a % b),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#concatenation_operator
 //   "If one of the operands is NULL, the result is NULL."
-BinaryOp.Concat => left is null || right is null ? null : left.ToString() + right.ToString(),
+//   "The || operator produces the same result as the CONCAT function."
+//   Implicit CAST AS STRING is applied to non-string operands.
+BinaryOp.Concat => left is null || right is null ? null : ConvertToString(left) + ConvertToString(right),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#bitwise_operators
 BinaryOp.BitAnd => BitwiseOp(left, right, (a, b) => a & b),
 BinaryOp.BitOr => BitwiseOp(left, right, (a, b) => a | b),
@@ -2407,14 +2409,21 @@ return name switch
 "LENGTH" or "CHAR_LENGTH" or "CHARACTER_LENGTH" => EvaluateLength(args, row),
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#trim
 //   "TRIM(value[, characters]) — Removes leading and trailing characters that match characters."
+//   "Returns NULL if value_to_trim or set_of_characters is NULL."
 "TRIM" => args.Count >= 2
-	? Evaluate(args[0], row)?.ToString()?.Trim((Evaluate(args[1], row)?.ToString() ?? "").ToCharArray())
+	? (Evaluate(args[1], row)?.ToString() is string trimChars
+		? Evaluate(args[0], row)?.ToString()?.Trim(trimChars.ToCharArray())
+		: null)
 	: Evaluate(args[0], row)?.ToString()?.Trim(),
 "LTRIM" => args.Count >= 2
-	? Evaluate(args[0], row)?.ToString()?.TrimStart((Evaluate(args[1], row)?.ToString() ?? "").ToCharArray())
+	? (Evaluate(args[1], row)?.ToString() is string ltrimChars
+		? Evaluate(args[0], row)?.ToString()?.TrimStart(ltrimChars.ToCharArray())
+		: null)
 	: Evaluate(args[0], row)?.ToString()?.TrimStart(),
 "RTRIM" => args.Count >= 2
-	? Evaluate(args[0], row)?.ToString()?.TrimEnd((Evaluate(args[1], row)?.ToString() ?? "").ToCharArray())
+	? (Evaluate(args[1], row)?.ToString() is string rtrimChars
+		? Evaluate(args[0], row)?.ToString()?.TrimEnd(rtrimChars.ToCharArray())
+		: null)
 	: Evaluate(args[0], row)?.ToString()?.TrimEnd(),
 "REVERSE" => Evaluate(args[0], row)?.ToString() is string s ? new string(s.Reverse().ToArray()) : null,
 "REPLACE" => EvaluateReplace(args, row),
@@ -3240,8 +3249,10 @@ private object? EvaluateRegexpReplace(IReadOnlyList<SqlExpression> args, RowCont
 {
 var str = Evaluate(args[0], row)?.ToString();
 var pattern = Evaluate(args[1], row)?.ToString();
-var replacement = Evaluate(args[2], row)?.ToString() ?? "";
-if (str is null || pattern is null) return null;
+var replacement = Evaluate(args[2], row)?.ToString();
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_replace
+//   "Returns NULL if any argument is NULL."
+if (str is null || pattern is null || replacement is null) return null;
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#regexp_replace
 //   BigQuery uses \1, \2 for backreferences; .NET uses $1, $2.
 //   First escape any literal $ to $$ so .NET doesn't interpret them as backrefs.
@@ -3547,7 +3558,7 @@ return partName switch
 "WEEK" => ComputeWeekNumber(dto.DateTime, DayOfWeek.Sunday),
 "QUARTER" => (long)((dto.Month - 1) / 3 + 1),
 "DATE" => (object)DateOnly.FromDateTime(dto.Date),
-"TIME" => dto.TimeOfDay.ToString(),
+"TIME" => (object)dto.TimeOfDay,
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
 //   "ISOWEEK: Returns the ISO 8601 week number of the date_expression."
 "ISOWEEK" => (long)System.Globalization.ISOWeek.GetWeekOfYear(dto.DateTime),
@@ -4341,7 +4352,8 @@ private object? EvaluateFormatTime(IReadOnlyList<SqlExpression> args, RowContext
 	//   "Returns NULL if any argument is NULL."
 	if (timeVal is null) return null;
 	var time = ToTimeSpan(timeVal);
-	var dto = new DateTimeOffset(2000, 1, 1, time.Hours, time.Minutes, time.Seconds, TimeSpan.Zero);
+	// Preserve fractional seconds (ticks) from the TimeSpan
+	var dto = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero).Add(time);
 	return FormatTimestamp(dto, format);
 }
 
@@ -8084,7 +8096,9 @@ DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
 DateTime dt => dt.ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff", CultureInfo.InvariantCulture),
 // Ref: https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
 //   TIME values are returned as "HH:mm:ss.FFFFFF" strings.
-TimeSpan ts => ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture),
+TimeSpan ts => ts.Ticks % TimeSpan.TicksPerSecond != 0
+	? ts.ToString(@"hh\:mm\:ss\.ffffff", CultureInfo.InvariantCulture)
+	: ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture),
 byte[] bytes => Convert.ToBase64String(bytes),
 // Ref: https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
 //   REPEATED fields are represented as arrays of cell values.
@@ -8580,7 +8594,11 @@ DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
 DateTime dt => dt.TimeOfDay.Ticks % TimeSpan.TicksPerSecond != 0
 	? dt.ToString("yyyy-MM-dd HH:mm:ss.ffffff", CultureInfo.InvariantCulture)
 	: dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
-TimeSpan ts => ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions#cast_as_string
+//   "Casting from a time type to a string is of the form HH:MM:SS[.FFFFFF]."
+TimeSpan ts => ts.Ticks % TimeSpan.TicksPerSecond != 0
+	? ts.ToString(@"hh\:mm\:ss\.ffffff", CultureInfo.InvariantCulture)
+	: ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture),
 _ => val.ToString()
 };
 }
