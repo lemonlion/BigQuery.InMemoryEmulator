@@ -3403,6 +3403,9 @@ return partName switch
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
 //   "ISOYEAR: Returns the ISO 8601 week-numbering year."
 "ISOYEAR" => (long)System.Globalization.ISOWeek.GetYear(dto.DateTime),
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
+//   "WEEK(<WEEKDAY>): Returns the week number with weeks starting on the given day."
+_ when partName.StartsWith("WEEK_") => ComputeWeekNumber(dto.DateTime, Enum.Parse<DayOfWeek>(partName.Substring(5), ignoreCase: true)),
 _ => throw new NotSupportedException("Unsupported EXTRACT part: " + partName)
 };
 }

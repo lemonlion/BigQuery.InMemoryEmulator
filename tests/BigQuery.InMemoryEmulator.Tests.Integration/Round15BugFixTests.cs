@@ -204,4 +204,33 @@ public class Round15BugFixTests : IAsyncLifetime
 		var v = await S("SELECT JSON_EXTRACT('{\"a\":[1,2,3]}', '$.a[1]')");
 		Assert.Equal("2", v);
 	}
+
+	// ================================================================
+	// EXTRACT(WEEK(weekday) FROM date) - parser ordering fix
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
+	// ================================================================
+
+	[Fact]
+	public async Task Extract_WeekMonday()
+	{
+		// Jan 8 2024 is a Monday. First Monday = Jan 1. Jan 8 = week 2.
+		var v = await S("SELECT EXTRACT(WEEK(MONDAY) FROM DATE '2024-01-08')");
+		Assert.Equal("2", v);
+	}
+
+	[Fact]
+	public async Task Extract_WeekSunday()
+	{
+		// Jan 7 2024 is a Sunday. First Sunday = Jan 7. Jan 7 = week 1.
+		var v = await S("SELECT EXTRACT(WEEK(SUNDAY) FROM DATE '2024-01-07')");
+		Assert.Equal("1", v);
+	}
+
+	[Fact]
+	public async Task Extract_WeekSaturday_BeforeFirstSaturday()
+	{
+		// Jan 1 2024 is Monday. First Saturday = Jan 6. Jan 5 (Fri) = week 0.
+		var v = await S("SELECT EXTRACT(WEEK(SATURDAY) FROM DATE '2024-01-05')");
+		Assert.Equal("0", v);
+	}
 }

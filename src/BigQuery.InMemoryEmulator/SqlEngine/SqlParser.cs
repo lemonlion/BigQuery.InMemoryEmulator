@@ -33,9 +33,20 @@ internal static class SqlParser
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-and-operators
 	internal static string NormalizeSql(string sql)
 	{
+		// WEEK(WEEKDAY) parameterized form → 'WEEK_WEEKDAY' string literal
+		// Must run BEFORE EXTRACT rewrite so that EXTRACT(WEEK(MONDAY) FROM ...) becomes EXTRACT('WEEK_MONDAY' FROM ...)
+		// and then the EXTRACT regex can handle it properly.
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date_trunc
+		//   "WEEK(WEEKDAY): Truncates date_expression to the preceding day that has the specified WEEKDAY name."
+		sql = Regex.Replace(sql,
+			@"\bWEEK\s*\(\s*(SUNDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY)\s*\)",
+			"'WEEK_$1'", RegexOptions.IgnoreCase);
+
 		// EXTRACT(part FROM expr) → EXTRACT('part', expr)
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#extract
 		sql = Regex.Replace(sql, @"\bEXTRACT\s*\(\s*(\w+)\s+FROM\s+", "EXTRACT('$1', ", RegexOptions.IgnoreCase);
+		// Handle EXTRACT with already-quoted part (e.g. EXTRACT('WEEK_MONDAY' FROM expr))
+		sql = Regex.Replace(sql, @"\bEXTRACT\s*\(\s*'([^']+)'\s+FROM\s+", "EXTRACT('$1', ", RegexOptions.IgnoreCase);
 
 		// DATE 'string' → CAST('string' AS DATE)
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#date_literals
@@ -119,12 +130,7 @@ internal static class SqlParser
 		// Functions like DATE_DIFF(d1, d2, DAY) pass DAY as a bare keyword, which the parser
 		// treats as a column reference (evaluates to null). Convert to 'DAY'.
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions
-		// WEEK(WEEKDAY) parameterized form → 'WEEK_WEEKDAY' string literal
-		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date_trunc
-		//   "WEEK(WEEKDAY): Truncates date_expression to the preceding day that has the specified WEEKDAY name."
-		sql = Regex.Replace(sql,
-			@"\bWEEK\s*\(\s*(SUNDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY)\s*\)",
-			"'WEEK_$1'", RegexOptions.IgnoreCase);
+		// Note: WEEK(WEEKDAY) form was already handled at the top of NormalizeSql.
 		// Pattern 1: date part as last argument before ')'
 		sql = Regex.Replace(sql,
 			@",\s*\b(NANOSECOND|MICROSECOND|MILLISECOND|SECOND|MINUTE|HOUR|DAY|DAYOFWEEK|DAYOFYEAR|WEEK|ISOWEEK|MONTH|QUARTER|YEAR|ISOYEAR|DATE|DATETIME)\s*\)",

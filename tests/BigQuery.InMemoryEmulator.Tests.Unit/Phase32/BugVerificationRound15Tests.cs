@@ -123,4 +123,32 @@ public class BugVerificationRound15Tests
 		var executor = CreateExecutor();
 		Assert.ThrowsAny<Exception>(() => executor.Execute("SELECT POW(-1, 0.5)"));
 	}
+
+	// =====================================================
+	// BUG 7: EXTRACT(WEEK(MONDAY) FROM date) - parser ordering issue
+	// The EXTRACT rewrite must run AFTER WEEK(DOW) rewrite
+	// =====================================================
+	[Fact]
+	public void Extract_WeekMonday_FromDate()
+	{
+		// EXTRACT(WEEK(MONDAY) FROM DATE '2024-01-08')
+		// Jan 8 2024 is a Monday.
+		// Weeks starting Monday: Jan 1 is the first Monday.
+		// Jan 8 is the start of week 2 (Jan 1=week1, Jan 8=week2)
+		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract
+		var executor = CreateExecutor();
+		var (_, rows) = executor.Execute("SELECT EXTRACT(WEEK(MONDAY) FROM DATE '2024-01-08')");
+		Assert.Equal("2", rows[0].F[0].V?.ToString());
+	}
+
+	[Fact]
+	public void Extract_WeekSunday_FromDate()
+	{
+		// Jan 7 2024 is a Sunday.
+		// First Sunday in 2024 = Jan 7. Prior days are week 0.
+		// Jan 7 = start of week 1
+		var executor = CreateExecutor();
+		var (_, rows) = executor.Execute("SELECT EXTRACT(WEEK(SUNDAY) FROM DATE '2024-01-07')");
+		Assert.Equal("1", rows[0].F[0].V?.ToString());
+	}
 }
