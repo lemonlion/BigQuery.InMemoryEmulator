@@ -1,7 +1,7 @@
-# BigQuery.InMemoryEmulator
+# InMemoryEmulator.BigQuery
 
-[![NuGet](https://img.shields.io/nuget/v/BigQuery.InMemoryEmulator.svg)](https://www.nuget.org/packages/BigQuery.InMemoryEmulator)
-[![Tests](https://github.com/lemonlion/BigQuery.InMemoryEmulator/actions/workflows/test.yml/badge.svg)](https://github.com/lemonlion/BigQuery.InMemoryEmulator/actions/workflows/test.yml)
+[![NuGet](https://img.shields.io/nuget/v/InMemoryEmulator.BigQuery.svg)](https://www.nuget.org/packages/InMemoryEmulator.BigQuery)
+[![Tests](https://github.com/lemonlion/InMemoryEmulator.BigQuery/actions/workflows/test.yml/badge.svg)](https://github.com/lemonlion/InMemoryEmulator.BigQuery/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 A high-fidelity, in-memory implementation of the Google Cloud BigQuery SDK for .NET — purpose-built for fast, reliable component and integration testing. Zero production code changes required.
@@ -48,7 +48,7 @@ Your Code → BigQueryClient → SDK HTTP Pipeline → FakeBigQueryHandler → I
 ## Installation
 
 ```bash
-dotnet add package BigQuery.InMemoryEmulator
+dotnet add package InMemoryEmulator.BigQuery
 ```
 
 **Requirements**: .NET 8.0+, `Google.Cloud.BigQuery.V2` 3.x+
@@ -100,7 +100,7 @@ builder.ConfigureTestServices(services =>
 
 ## Documentation
 
-See the [wiki](https://github.com/lemonlion/BigQuery.InMemoryEmulator/wiki) for full documentation.
+See the [wiki](https://github.com/lemonlion/InMemoryEmulator.BigQuery/wiki) for full documentation.
 
 ## License
 

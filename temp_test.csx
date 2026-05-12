@@ -1,5 +1,5 @@
-using BigQuery.InMemoryEmulator;
-using BigQuery.InMemoryEmulator.SqlEngine;
+using InMemoryEmulator.BigQuery;
+using InMemoryEmulator.BigQuery.SqlEngine;
 var store = new InMemoryDataStore("test-project");
 store.Datasets["ds"] = new InMemoryDataset("ds");
 var exec = new QueryExecutor(store, "ds");

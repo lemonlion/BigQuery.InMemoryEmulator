@@ -9,8 +9,8 @@
 		<Authors>lemonlion</Authors>
 		<Copyright>Copyright (c) 2026 lemonlion</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageProjectUrl>https://github.com/lemonlion/BigQuery.InMemoryEmulator</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/lemonlion/BigQuery.InMemoryEmulator</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/lemonlion/InMemoryEmulator.BigQuery</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/lemonlion/InMemoryEmulator.BigQuery</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 	</PropertyGroup>
 
