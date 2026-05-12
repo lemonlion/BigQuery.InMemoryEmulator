@@ -8,7 +8,12 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Comprehensive procedural language tests.
 /// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language
 /// </summary>
+// Go emulator divergence: The Go BigQuery emulator does not support procedural language features
+// (DECLARE, SET, IF, WHILE, LOOP, REPEAT, FOR...IN, BEGIN/END, EXECUTE IMMEDIATE, etc.)
+// even though they are standard BigQuery features.
+// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language
 [Collection(IntegrationCollection.Name)]
+[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 public class ProceduralComprehensiveTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

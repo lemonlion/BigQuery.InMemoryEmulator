@@ -106,14 +106,20 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("\"hello\"", r);
 	}
 
+	// Go emulator divergence: TO_JSON_STRING returns wrong value
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#to_json_string
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task ToJsonString_Null()
 	{
 		var r = await S("SELECT TO_JSON_STRING(NULL)");
 		Assert.Equal("null", r);
 	}
 
+	// Go emulator divergence: TO_JSON_STRING(TRUE) should return "true"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#to_json_string
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task ToJsonString_Boolean()
 	{
 		var r = await S("SELECT TO_JSON_STRING(TRUE)");
@@ -230,41 +236,59 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	[Fact]
 	public async Task Sqrt_Basic() => Assert.Equal("3", await S("SELECT CAST(SQRT(9) AS INT64)"));
 
+	// Go emulator divergence: LOG(100, 10) returns wrong value
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#log
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task Log_Base10() => Assert.Equal("2", await S("SELECT CAST(LOG(100, 10) AS INT64)"));
 
 	[Fact]
 	public async Task Ln_E() => Assert.Equal("1", await S("SELECT CAST(LN(EXP(1)) AS INT64)"));
 
+	// Go emulator divergence: CAST('inf' AS FLOAT64) parsing error
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task IsInf_True() => Assert.Equal("True", await S("SELECT IS_INF(CAST('inf' AS FLOAT64))"));
 
+	// Go emulator divergence: CAST('nan' AS FLOAT64) parsing error
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task IsNan_True() => Assert.Equal("True", await S("SELECT IS_NAN(CAST('nan' AS FLOAT64))"));
 
+	// Go emulator divergence: SAFE_ADD doesn't return NULL on overflow
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#safe_add
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task SafeAdd_Overflow_ReturnsNull()
 	{
-		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#safe_add
 		var r = await S("SELECT SAFE_ADD(9223372036854775807, 1)");
 		Assert.Null(r);
 	}
 
+	// Go emulator divergence: SAFE_SUBTRACT doesn't return NULL on overflow
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#safe_subtract
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task SafeSubtract_Overflow_ReturnsNull()
 	{
 		var r = await S("SELECT SAFE_SUBTRACT(CAST('-9223372036854775808' AS INT64), 1)");
 		Assert.Null(r);
 	}
 
+	// Go emulator divergence: SAFE_MULTIPLY doesn't return NULL on overflow
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#safe_multiply
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task SafeMultiply_Overflow_ReturnsNull()
 	{
 		var r = await S("SELECT SAFE_MULTIPLY(9223372036854775807, 2)");
 		Assert.Null(r);
 	}
 
+	// Go emulator divergence: SAFE_NEGATE doesn't return NULL on overflow
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#safe_negate
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task SafeNegate_OverflowMin_ReturnsNull()
 	{
 		// Use CAST to ensure INT64 type (literal 9223372036854775808 exceeds long range and parses as double)
@@ -292,7 +316,10 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("0", r);
 	}
 
+	// Go emulator divergence: INSTR reports invalid position even with default args
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#instr
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task Instr_Basic()
 	{
 		var r = await S("SELECT INSTR('banana', 'an')");
@@ -376,7 +403,10 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("65", r);
 	}
 
+	// Go emulator divergence: Function not found: CONTAINS_SUBSTR
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#contains_substr
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task ContainsSubstr_Found()
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#contains_substr
@@ -384,7 +414,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("True", r);
 	}
 
+	// Go emulator divergence: Function not found: CONTAINS_SUBSTR
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task ContainsSubstr_NotFound()
 	{
 		var r = await S("SELECT CONTAINS_SUBSTR('hello', 'xyz')");
@@ -404,7 +436,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions
 	// ========================================================================
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task AnyValue_ReturnsNonNull()
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#any_value
@@ -415,7 +449,10 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.NotNull(r);
 	}
 
+	// Go emulator divergence: ARRAY_AGG rejects NULL input (but BigQuery default is RESPECT NULLS)
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_agg
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task ArrayAgg_RespectNulls()
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_agg
@@ -424,7 +461,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("3", r);
 	}
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task ArrayConcatAgg_Basic()
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_concat_agg
@@ -488,7 +527,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("2.7", r);
 	}
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task Corr_Perfect()
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#corr
@@ -514,7 +555,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#in_operators
 	// ========================================================================
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task InSubquery_Found()
 	{
 		await Exec("CREATE TABLE `{ds}.ins1` (id INT64, name STRING)");
@@ -525,7 +568,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("Charlie", rows[1]["name"]?.ToString());
 	}
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task InSubquery_NotIn()
 	{
 		await Exec("CREATE TABLE `{ds}.ins2` (id INT64, name STRING)");
@@ -540,7 +585,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#pivot_operator
 	// ========================================================================
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task Pivot_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.pvt` (product STRING, quarter STRING, revenue INT64)");
@@ -559,7 +606,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement
 	// ========================================================================
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task Merge_InsertAndUpdate()
 	{
 		await Exec("CREATE TABLE `{ds}.mt` (id INT64, val STRING)");
@@ -576,7 +625,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("added", rows[1]["val"]?.ToString());
 	}
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task Merge_Delete()
 	{
 		await Exec("CREATE TABLE `{ds}.md` (id INT64, active BOOL)");
@@ -597,7 +648,10 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions
 	// ========================================================================
 
+	// Go emulator divergence: DATETIME_ADD returns wrong format
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_add
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task DatetimeAdd_Days()
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_add
@@ -605,7 +659,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("2023-01-20 10:00:00", r);
 	}
 
+	// Go emulator divergence: DATETIME_SUB returns wrong format
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task DatetimeSub_Hours()
 	{
 		var r = await S("SELECT CAST(DATETIME_SUB(DATETIME '2023-01-15 10:00:00', INTERVAL 3 HOUR) AS STRING)");
@@ -620,7 +676,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("5", r);
 	}
 
+	// Go emulator divergence: DATETIME_TRUNC returns wrong format
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task DatetimeTrunc_Month()
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions#datetime_trunc
@@ -680,7 +738,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		Assert.Equal("aGVsbG8=", r);
 	}
 
+	// Go emulator divergence: CAST(FROM_BASE64(...) AS STRING) fails
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task FromBase64_Basic()
 	{
 		var r = await S("SELECT CAST(FROM_BASE64('aGVsbG8=') AS STRING)");
@@ -727,7 +787,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#unpivot_operator
 	// ========================================================================
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task Unpivot_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.upvt` (id INT64, q1 INT64, q2 INT64)");
@@ -745,7 +807,9 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	// SCALAR SUBQUERY EDGE CASES
 	// ========================================================================
 
+	// Go emulator divergence: INSERT without column list not supported
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task ScalarSubquery_InSelect()
 	{
 		await Exec("CREATE TABLE `{ds}.ss1` (id INT64, dept STRING)");

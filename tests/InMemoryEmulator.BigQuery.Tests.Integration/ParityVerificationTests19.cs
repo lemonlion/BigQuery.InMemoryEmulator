@@ -222,14 +222,21 @@ public class ParityVerificationTests19 : IAsyncLifetime
 	// Complex expressions
 	// ───────────────────────────────────────────────────────────────────────────
 
-	[Fact] public async Task NullCoalesce_Operator()
+	// ?? operator is not a standard BigQuery operator (not in official operators reference).
+	// The InMemory emulator supports it as a non-standard IFNULL-equivalent extension.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators (not listed)
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task NullCoalesce_Operator()
 	{
 		// ?? operator (IFNULL equivalent)
 		var result = await S("SELECT CAST(NULL AS INT64) ?? 42");
 		Assert.Equal("42", result);
 	}
 
-	[Fact] public async Task NullCoalesce_NonNull()
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task NullCoalesce_NonNull()
 	{
 		var result = await S("SELECT 10 ?? 42");
 		Assert.Equal("10", result);

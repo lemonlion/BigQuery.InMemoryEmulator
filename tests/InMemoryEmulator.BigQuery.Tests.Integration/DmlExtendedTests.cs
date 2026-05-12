@@ -34,13 +34,23 @@ public class DmlExtendedTests : IAsyncLifetime
 	private async Task Exec(string sql) { var c = await _fixture.GetClientAsync(); await c.ExecuteQueryAsync(sql.Replace("{ds}", _ds), parameters: null); }
 
 	// ---- INSERT patterns ----
-	[Fact] public async Task Insert_SingleRow()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Insert_SingleRow()
 	{
 		await Exec("CREATE TABLE `{ds}.t1` (id INT64, name STRING)");
 		await Exec("INSERT INTO `{ds}.t1` VALUES (1, 'Alice')");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.t1`"));
 	}
-	[Fact] public async Task Insert_MultipleRows()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Insert_MultipleRows()
 	{
 		await Exec("CREATE TABLE `{ds}.t2` (id INT64, name STRING)");
 		await Exec("INSERT INTO `{ds}.t2` VALUES (1,'A'),(2,'B'),(3,'C')");
@@ -54,7 +64,12 @@ public class DmlExtendedTests : IAsyncLifetime
 		Assert.Single(rows);
 		Assert.Null(rows[0]["val"]);
 	}
-	[Fact] public async Task Insert_FromSelect()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Insert_FromSelect()
 	{
 		await Exec("CREATE TABLE `{ds}.t4a` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.t4b` (id INT64, name STRING)");
@@ -62,7 +77,12 @@ public class DmlExtendedTests : IAsyncLifetime
 		await Exec("INSERT INTO `{ds}.t4b` SELECT * FROM `{ds}.t4a` WHERE id <= 2");
 		Assert.Equal("2", await S("SELECT COUNT(*) FROM `{ds}.t4b`"));
 	}
-	[Fact] public async Task Insert_WithExpressions()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Insert_WithExpressions()
 	{
 		await Exec("CREATE TABLE `{ds}.t5` (id INT64, doubled INT64, label STRING)");
 		await Exec("INSERT INTO `{ds}.t5` VALUES (1, 1*2, CONCAT('item_', CAST(1 AS STRING)))");
@@ -70,7 +90,12 @@ public class DmlExtendedTests : IAsyncLifetime
 		Assert.Equal("2", rows[0]["doubled"]?.ToString());
 		Assert.Equal("item_1", rows[0]["label"]?.ToString());
 	}
-	[Fact] public async Task Insert_NullValues()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Insert_NullValues()
 	{
 		await Exec("CREATE TABLE `{ds}.t6` (id INT64, val INT64)");
 		await Exec("INSERT INTO `{ds}.t6` VALUES (1, NULL)");
@@ -78,21 +103,36 @@ public class DmlExtendedTests : IAsyncLifetime
 	}
 
 	// ---- UPDATE patterns ----
-	[Fact] public async Task Update_AllRows()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Update_AllRows()
 	{
 		await Exec("CREATE TABLE `{ds}.u1` (id INT64, val INT64)");
 		await Exec("INSERT INTO `{ds}.u1` VALUES (1,10),(2,20),(3,30)");
 		await Exec("UPDATE `{ds}.u1` SET val = val * 2 WHERE true");
 		Assert.Equal("120", await S("SELECT SUM(val) FROM `{ds}.u1`")); // 20+40+60
 	}
-	[Fact] public async Task Update_WithCondition()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Update_WithCondition()
 	{
 		await Exec("CREATE TABLE `{ds}.u2` (id INT64, status STRING)");
 		await Exec("INSERT INTO `{ds}.u2` VALUES (1,'active'),(2,'active'),(3,'inactive')");
 		await Exec("UPDATE `{ds}.u2` SET status = 'archived' WHERE status = 'inactive'");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.u2` WHERE status = 'archived'"));
 	}
-	[Fact] public async Task Update_MultipleColumns()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Update_MultipleColumns()
 	{
 		await Exec("CREATE TABLE `{ds}.u3` (id INT64, name STRING, val INT64)");
 		await Exec("INSERT INTO `{ds}.u3` VALUES (1,'old',10)");
@@ -101,21 +141,36 @@ public class DmlExtendedTests : IAsyncLifetime
 		Assert.Equal("new", rows[0]["name"]?.ToString());
 		Assert.Equal("99", rows[0]["val"]?.ToString());
 	}
-	[Fact] public async Task Update_SetToNull()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Update_SetToNull()
 	{
 		await Exec("CREATE TABLE `{ds}.u4` (id INT64, val INT64)");
 		await Exec("INSERT INTO `{ds}.u4` VALUES (1,10)");
 		await Exec("UPDATE `{ds}.u4` SET val = NULL WHERE id = 1");
 		Assert.Null((await Q("SELECT val FROM `{ds}.u4`"))[0]["val"]);
 	}
-	[Fact] public async Task Update_WithExpression()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Update_WithExpression()
 	{
 		await Exec("CREATE TABLE `{ds}.u5` (id INT64, price FLOAT64, tax FLOAT64)");
 		await Exec("INSERT INTO `{ds}.u5` VALUES (1,100,0)");
 		await Exec("UPDATE `{ds}.u5` SET tax = price * 0.1 WHERE true");
 		Assert.Equal("10", await S("SELECT tax FROM `{ds}.u5`"));
 	}
-	[Fact] public async Task Update_NoMatchingRows()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Update_NoMatchingRows()
 	{
 		await Exec("CREATE TABLE `{ds}.u6` (id INT64, val INT64)");
 		await Exec("INSERT INTO `{ds}.u6` VALUES (1,10)");
@@ -124,28 +179,48 @@ public class DmlExtendedTests : IAsyncLifetime
 	}
 
 	// ---- DELETE patterns ----
-	[Fact] public async Task Delete_WithCondition()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Delete_WithCondition()
 	{
 		await Exec("CREATE TABLE `{ds}.d1` (id INT64, val INT64)");
 		await Exec("INSERT INTO `{ds}.d1` VALUES (1,10),(2,20),(3,30)");
 		await Exec("DELETE FROM `{ds}.d1` WHERE val < 25");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.d1`"));
 	}
-	[Fact] public async Task Delete_AllRows()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Delete_AllRows()
 	{
 		await Exec("CREATE TABLE `{ds}.d2` (id INT64)");
 		await Exec("INSERT INTO `{ds}.d2` VALUES (1),(2),(3)");
 		await Exec("DELETE FROM `{ds}.d2` WHERE true");
 		Assert.Equal("0", await S("SELECT COUNT(*) FROM `{ds}.d2`"));
 	}
-	[Fact] public async Task Delete_NoMatch()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Delete_NoMatch()
 	{
 		await Exec("CREATE TABLE `{ds}.d3` (id INT64)");
 		await Exec("INSERT INTO `{ds}.d3` VALUES (1),(2),(3)");
 		await Exec("DELETE FROM `{ds}.d3` WHERE id > 100");
 		Assert.Equal("3", await S("SELECT COUNT(*) FROM `{ds}.d3`"));
 	}
-	[Fact] public async Task Delete_WithComplexCondition()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Delete_WithComplexCondition()
 	{
 		await Exec("CREATE TABLE `{ds}.d4` (id INT64, grp STRING, val INT64)");
 		await Exec("INSERT INTO `{ds}.d4` VALUES (1,'A',10),(2,'A',20),(3,'B',30),(4,'B',40)");
@@ -154,7 +229,12 @@ public class DmlExtendedTests : IAsyncLifetime
 	}
 
 	// ---- MERGE patterns ----
-	[Fact] public async Task Merge_InsertOnly()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Merge_InsertOnly()
 	{
 		await Exec("CREATE TABLE `{ds}.m1` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.m1s` (id INT64, name STRING)");
@@ -165,7 +245,12 @@ public class DmlExtendedTests : IAsyncLifetime
 			WHEN NOT MATCHED THEN INSERT (id, name) VALUES (s.id, s.name)");
 		Assert.Equal("2", await S("SELECT COUNT(*) FROM `{ds}.m1`"));
 	}
-	[Fact] public async Task Merge_UpdateOnly()
+	// Go emulator requires column list in INSERT VALUES (used in setup).
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Merge_UpdateOnly()
 	{
 		await Exec("CREATE TABLE `{ds}.m2` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.m2s` (id INT64, name STRING)");
