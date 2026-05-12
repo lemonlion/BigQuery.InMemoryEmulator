@@ -891,18 +891,6 @@ Token.EqualTo(SqlToken.LParen)
 				(SqlExpression)new BinaryExpr(left, pair.Op, pair.Right)))
 		);
 
-	// --- Null coalesce ?? (left-associative, between comparison and NOT) ---
-	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators
-	//   "?? is equivalent to COALESCE(a, b)."
-	private static readonly TokenListParser<SqlToken, SqlExpression> NullCoalesceExpr =
-		Comparison.Then(first =>
-			Token.EqualTo(SqlToken.NullCoalesce)
-				.Then(_ => Comparison.Select(right => right))
-			.Try().Many()
-			.Select(rights => rights.Aggregate(first, (left, right) =>
-				(SqlExpression)new BinaryExpr(left, BinaryOp.NullCoalesce, right)))
-		);
-
 	// --- NOT (prefix, lower precedence than comparison) ---
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#operator_precedence
 	//   "NOT has lower precedence than comparison operators but higher than AND."
@@ -911,7 +899,7 @@ Token.EqualTo(SqlToken.LParen)
 			SP.Ref(() => NotExpr!)
 		).Select(e => (SqlExpression)new UnaryExpr(UnaryOp.Not, e))
 		.Try()
-		.Or(NullCoalesceExpr);
+		.Or(Comparison);
 
 	// --- AND ---
 	private static readonly TokenListParser<SqlToken, SqlExpression> AndExpr =

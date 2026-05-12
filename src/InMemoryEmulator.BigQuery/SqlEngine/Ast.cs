@@ -235,8 +235,6 @@ internal enum BinaryOp
 	Concat,
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#bitwise_operators
 	BitAnd, BitOr, BitXor, ShiftLeft, ShiftRight,
-	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#operator_precedence
-	NullCoalesce,
 }
 
 internal enum UnaryOp { Not, Negate, BitNot }

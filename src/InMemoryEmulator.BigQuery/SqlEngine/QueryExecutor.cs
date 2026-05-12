@@ -1793,13 +1793,6 @@ if (r is not null && IsTruthy(r)) return true;
 if (l is null || r is null) return null;
 return false;
 }
-// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators
-//   "?? is equivalent to COALESCE(a, b): returns a if a is not null, otherwise b."
-if (bin.Op == BinaryOp.NullCoalesce)
-{
-var l = Evaluate(bin.Left, row);
-return l ?? Evaluate(bin.Right, row);
-}
 
 var left = Evaluate(bin.Left, row);
 var right = Evaluate(bin.Right, row);

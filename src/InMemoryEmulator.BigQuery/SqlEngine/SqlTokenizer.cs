@@ -48,7 +48,6 @@ internal enum SqlToken
 	ShiftLeft,       // <<
 	ShiftRight,      // >>
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#operator_precedence
-	NullCoalesce,    // ??
 }
 
 internal static class SqlTokenizer
@@ -63,9 +62,6 @@ internal static class SqlTokenizer
 		.Match(Span.EqualTo(">="), SqlToken.Gte)
 		.Match(Span.EqualTo("||"), SqlToken.Pipe)
 		.Match(Span.EqualTo("->"), SqlToken.Arrow)
-		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#operator_precedence
-		//   "?? is the null coalesce operator."
-		.Match(Span.EqualTo("??"), SqlToken.NullCoalesce)
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#bitwise_operators
 		.Match(Span.EqualTo("<<"), SqlToken.ShiftLeft)
 		.Match(Span.EqualTo(">>"), SqlToken.ShiftRight)
