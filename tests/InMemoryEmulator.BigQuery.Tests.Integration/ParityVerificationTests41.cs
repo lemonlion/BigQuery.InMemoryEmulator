@@ -187,7 +187,10 @@ public class ParityVerificationTests41 : IAsyncLifetime
 		await AssertThrowsAsync("SELECT MOD(5, 0)");
 	}
 
+	// BigQuery docs: MOD only accepts INT64, UINT64, NUMERIC, BIGNUMERIC — not FLOAT64
+	// The in-memory emulator extends this as a convenience but the Go emulator rejects it
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task Mod_FloatValid_ReturnsCorrect()
 	{
 		var result = await ScalarAsync("SELECT MOD(5.5, 2.0)");
@@ -200,7 +203,10 @@ public class ParityVerificationTests41 : IAsyncLifetime
 
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#div
 	//   "Division of X by Y, rounded toward zero to the nearest integer."
+	// BigQuery docs: DIV only accepts INT64, UINT64, NUMERIC, BIGNUMERIC — not FLOAT64
+	// The in-memory emulator extends this as a convenience but the Go emulator rejects it
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task Div_FloatInputs_DividesThenTruncates()
 	{
 		// DIV(1.5, 0.7) = TRUNC(1.5/0.7) = TRUNC(2.14...) = 2
@@ -208,7 +214,9 @@ public class ParityVerificationTests41 : IAsyncLifetime
 		Assert.Equal("2", result);
 	}
 
+	// BigQuery docs: DIV only accepts INT64, UINT64, NUMERIC, BIGNUMERIC — not FLOAT64
 	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task Div_FloatInputs_NegativeResult()
 	{
 		// DIV(-7.5, 2.0) = TRUNC(-7.5/2.0) = TRUNC(-3.75) = -3

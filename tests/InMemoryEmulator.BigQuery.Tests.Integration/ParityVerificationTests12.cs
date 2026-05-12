@@ -55,14 +55,20 @@ public class ParityVerificationTests12 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc
 	// ───────────────────────────────────────────────────────────────────────────
 
-	[Fact] public async Task TimestampTrunc_Isoyear()
+	// Go emulator returns ISO8601 format (2024-01-01T00:00:00Z) instead of BigQuery format (2024-01-01 00:00:00+00)
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task TimestampTrunc_Isoyear()
 	{
 		// ISO year 2024 starts Mon 2024-01-01
 		var result = await S("SELECT CAST(TIMESTAMP_TRUNC(TIMESTAMP '2024-06-15 10:00:00 UTC', ISOYEAR) AS STRING)");
 		Assert.Equal("2024-01-01 00:00:00+00", result);
 	}
 
-	[Fact] public async Task TimestampTrunc_Isoyear_2023()
+	// Go emulator returns ISO8601 format instead of BigQuery format
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task TimestampTrunc_Isoyear_2023()
 	{
 		// ISO year 2023 starts Mon 2023-01-02
 		var result = await S("SELECT CAST(TIMESTAMP_TRUNC(TIMESTAMP '2023-06-15 10:00:00 UTC', ISOYEAR) AS STRING)");
@@ -86,7 +92,10 @@ public class ParityVerificationTests12 : IAsyncLifetime
 		Assert.Equal("70", rows[3]["running"]?.ToString());
 	}
 
-	[Fact] public async Task WindowAvg_BetweenPrecedingAndFollowing()
+	// Go emulator returns "15" instead of "15.0" for CAST(AVG(...) AS STRING)
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task WindowAvg_BetweenPrecedingAndFollowing()
 	{
 		var rows = await Q(@"
 			SELECT val, CAST(AVG(val) OVER (ORDER BY val ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS STRING) AS avg_val
@@ -146,13 +155,15 @@ public class ParityVerificationTests12 : IAsyncLifetime
 
 	[Fact] public async Task ArrayReverse()
 	{
-		var result = await S("SELECT ARRAY_TO_STRING(ARRAY_REVERSE([1, 2, 3]), ',')");
+		// Ref: ARRAY_TO_STRING only accepts ARRAY<STRING>; cast INT64 elements
+		var result = await S("SELECT ARRAY_TO_STRING(ARRAY(SELECT CAST(x AS STRING) FROM UNNEST(ARRAY_REVERSE([1, 2, 3])) x), ',')");
 		Assert.Equal("3,2,1", result);
 	}
 
 	[Fact] public async Task ArrayConcat()
 	{
-		var result = await S("SELECT ARRAY_TO_STRING(ARRAY_CONCAT([1, 2], [3, 4]), ',')");
+		// Ref: ARRAY_TO_STRING only accepts ARRAY<STRING>; cast INT64 elements
+		var result = await S("SELECT ARRAY_TO_STRING(ARRAY(SELECT CAST(x AS STRING) FROM UNNEST(ARRAY_CONCAT([1, 2], [3, 4])) x), ',')");
 		Assert.Equal("1,2,3,4", result);
 	}
 

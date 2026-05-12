@@ -144,14 +144,20 @@ public class ParityVerificationTests7 : IAsyncLifetime
 		Assert.Equal("2024-03-15 10:30:45", result);
 	}
 
-	[Fact] public async Task FormatTimestamp_DayOfYear()
+	// Go emulator returns unpadded values for %j and %V format specifiers
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task FormatTimestamp_DayOfYear()
 	{
 		// March 15 is the 75th day of 2024 (leap year)
 		var result = await S("SELECT FORMAT_TIMESTAMP('%j', TIMESTAMP '2024-03-15 00:00:00 UTC')");
 		Assert.Equal("075", result);
 	}
 
-	[Fact] public async Task FormatTimestamp_IsoWeekNumber()
+	// Go emulator returns unpadded values for %V format specifier
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task FormatTimestamp_IsoWeekNumber()
 	{
 		// 2024-01-01 is in ISO week 1
 		var result = await S("SELECT FORMAT_TIMESTAMP('%V', TIMESTAMP '2024-01-01 00:00:00 UTC')");
@@ -246,7 +252,10 @@ public class ParityVerificationTests7 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions
 	// ───────────────────────────────────────────────────────────────────────────
 
-	[Fact] public async Task TimestampAdd_Hour()
+	// Go emulator returns ISO8601 format instead of BigQuery timestamp format
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task TimestampAdd_Hour()
 	{
 		var result = await S("SELECT CAST(TIMESTAMP_ADD(TIMESTAMP '2024-01-01 10:00:00 UTC', INTERVAL 3 HOUR) AS STRING)");
 		Assert.Equal("2024-01-01 13:00:00+00", result);
@@ -264,7 +273,10 @@ public class ParityVerificationTests7 : IAsyncLifetime
 		Assert.Equal("90", result);
 	}
 
-	[Fact] public async Task TimestampTrunc_Day()
+	// Go emulator returns ISO8601 format instead of BigQuery timestamp format
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task TimestampTrunc_Day()
 	{
 		var result = await S("SELECT CAST(TIMESTAMP_TRUNC(TIMESTAMP '2024-03-15 14:30:00 UTC', DAY) AS STRING)");
 		Assert.Equal("2024-03-15 00:00:00+00", result);
@@ -298,26 +310,26 @@ public class ParityVerificationTests7 : IAsyncLifetime
 
 	[Fact] public async Task GenerateArray_Basic()
 	{
-		var result = await S("SELECT ARRAY_TO_STRING(GENERATE_ARRAY(1, 5), ',')");
+		var result = await S("SELECT ARRAY_TO_STRING(ARRAY(SELECT CAST(x AS STRING) FROM UNNEST(GENERATE_ARRAY(1, 5)) x), ',')");
 		Assert.Equal("1,2,3,4,5", result);
 	}
 
 	[Fact] public async Task GenerateArray_WithStep()
 	{
-		var result = await S("SELECT ARRAY_TO_STRING(GENERATE_ARRAY(0, 10, 3), ',')");
+		var result = await S("SELECT ARRAY_TO_STRING(ARRAY(SELECT CAST(x AS STRING) FROM UNNEST(GENERATE_ARRAY(0, 10, 3)) x), ',')");
 		Assert.Equal("0,3,6,9", result);
 	}
 
 	[Fact] public async Task GenerateArray_Descending()
 	{
-		var result = await S("SELECT ARRAY_TO_STRING(GENERATE_ARRAY(5, 1, -1), ',')");
+		var result = await S("SELECT ARRAY_TO_STRING(ARRAY(SELECT CAST(x AS STRING) FROM UNNEST(GENERATE_ARRAY(5, 1, -1)) x), ',')");
 		Assert.Equal("5,4,3,2,1", result);
 	}
 
 	[Fact] public async Task ArrayAgg_Distinct()
 	{
 		var result = await S(@"
-			SELECT ARRAY_TO_STRING(ARRAY_AGG(DISTINCT x ORDER BY x), ',')
+			SELECT ARRAY_TO_STRING(ARRAY_AGG(DISTINCT CAST(x AS STRING) ORDER BY CAST(x AS STRING)), ',')
 			FROM UNNEST([1,2,2,3,3,3]) AS x");
 		Assert.Equal("1,2,3", result);
 	}
@@ -345,7 +357,10 @@ public class ParityVerificationTests7 : IAsyncLifetime
 		Assert.Equal("2024-03-15", result);
 	}
 
-	[Fact] public async Task Cast_StringToTimestamp()
+	// Go emulator returns ISO8601 format instead of BigQuery timestamp format
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task Cast_StringToTimestamp()
 	{
 		var result = await S("SELECT CAST(CAST('2024-03-15 10:30:00 UTC' AS TIMESTAMP) AS STRING)");
 		Assert.Equal("2024-03-15 10:30:00+00", result);
@@ -363,7 +378,10 @@ public class ParityVerificationTests7 : IAsyncLifetime
 		Assert.Equal("3.14", result);
 	}
 
-	[Fact] public async Task Cast_FloatToString_WholeNumber()
+	// Go emulator returns "42" instead of "42.0" for CAST(FLOAT64 AS STRING)
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task Cast_FloatToString_WholeNumber()
 	{
 		// Ref: FLOAT64 whole numbers include ".0" when cast to STRING
 		var result = await S("SELECT CAST(42.0 AS STRING)");
@@ -480,14 +498,14 @@ public class ParityVerificationTests7 : IAsyncLifetime
 	[Fact] public async Task GenerateDateArray_Daily()
 	{
 		var result = await S(@"
-			SELECT ARRAY_TO_STRING(GENERATE_DATE_ARRAY(DATE '2024-01-01', DATE '2024-01-05'), ',')");
+			SELECT ARRAY_TO_STRING(ARRAY(SELECT CAST(x AS STRING) FROM UNNEST(GENERATE_DATE_ARRAY(DATE '2024-01-01', DATE '2024-01-05')) x), ',')");
 		Assert.Equal("2024-01-01,2024-01-02,2024-01-03,2024-01-04,2024-01-05", result);
 	}
 
 	[Fact] public async Task GenerateDateArray_Monthly()
 	{
 		var result = await S(@"
-			SELECT ARRAY_TO_STRING(GENERATE_DATE_ARRAY(DATE '2024-01-01', DATE '2024-04-01', INTERVAL 1 MONTH), ',')");
+			SELECT ARRAY_TO_STRING(ARRAY(SELECT CAST(x AS STRING) FROM UNNEST(GENERATE_DATE_ARRAY(DATE '2024-01-01', DATE '2024-04-01', INTERVAL 1 MONTH)) x), ',')");
 		Assert.Equal("2024-01-01,2024-02-01,2024-03-01,2024-04-01", result);
 	}
 
@@ -524,7 +542,10 @@ public class ParityVerificationTests7 : IAsyncLifetime
 		Assert.Equal("hello BigQuery", result);
 	}
 
-	[Fact] public async Task Replace_EmptySource()
+	// Go emulator inserts between chars for empty search; real BigQuery returns original
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task Replace_EmptySource()
 	{
 		// Ref: "If original_value is empty, the original value is returned."
 		var result = await S("SELECT REPLACE('hello', '', 'x')");
@@ -543,7 +564,10 @@ public class ParityVerificationTests7 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#instr
 	// ───────────────────────────────────────────────────────────────────────────
 
-	[Fact] public async Task Instr_FirstOccurrence()
+	// Go emulator has bug with INSTR default position parameter
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task Instr_FirstOccurrence()
 	{
 		var result = await S("SELECT INSTR('hello world hello', 'hello')");
 		Assert.Equal("1", result);
@@ -555,7 +579,10 @@ public class ParityVerificationTests7 : IAsyncLifetime
 		Assert.Equal("13", result);
 	}
 
-	[Fact] public async Task Instr_NotFound()
+	// Go emulator has bug with INSTR default position parameter
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	public async Task Instr_NotFound()
 	{
 		var result = await S("SELECT INSTR('hello', 'xyz')");
 		Assert.Equal("0", result);
