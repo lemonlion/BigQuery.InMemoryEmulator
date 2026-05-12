@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// - Bug 2: UNNEST implicit alias (without AS keyword) not parsed correctly
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round18BugFixTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

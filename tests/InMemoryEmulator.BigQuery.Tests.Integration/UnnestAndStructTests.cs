@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#unnest
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class UnnestAndStructTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

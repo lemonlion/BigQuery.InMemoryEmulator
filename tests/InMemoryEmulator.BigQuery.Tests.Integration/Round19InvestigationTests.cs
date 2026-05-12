@@ -7,7 +7,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Research round 19: investigating potential bugs in various areas.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round19InvestigationTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

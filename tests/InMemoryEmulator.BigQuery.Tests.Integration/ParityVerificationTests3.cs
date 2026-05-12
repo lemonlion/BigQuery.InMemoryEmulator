@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// complex subqueries, JOIN USING, window functions over aggregates, and advanced date/time.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class ParityVerificationTests3 : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

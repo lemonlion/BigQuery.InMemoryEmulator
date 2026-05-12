@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_add
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class NullPropagationFunctionTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

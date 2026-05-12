@@ -10,7 +10,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// - FORMAT %T: String values produce quoted SQL literal
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round16BugFixTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

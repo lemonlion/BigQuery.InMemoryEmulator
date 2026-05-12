@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// aggregate functions, and REST API (copy job, routines).
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Phase27Tests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

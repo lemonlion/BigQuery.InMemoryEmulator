@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Ref: https://cloud.google.com/bigquery/docs/parameterized-queries
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class ParameterizedQueryComprehensiveTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

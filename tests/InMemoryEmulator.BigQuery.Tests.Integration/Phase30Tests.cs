@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// BEGIN...EXCEPTION...END, templated UDF args (ANY TYPE).
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Phase30Tests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

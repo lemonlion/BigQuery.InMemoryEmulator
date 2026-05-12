@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/window-function-calls
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class WindowFunctionEdgeCaseTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

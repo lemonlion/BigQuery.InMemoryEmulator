@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// - FORMAT_TIME drops fractional seconds
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round24BugFixTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

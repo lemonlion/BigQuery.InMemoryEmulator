@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class ConditionalExpressionComprehensiveTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

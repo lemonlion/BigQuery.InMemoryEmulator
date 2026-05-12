@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// - LAST_DAY missing ISOWEEK and ISOYEAR support
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round23BugFixTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

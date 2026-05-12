@@ -12,7 +12,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// ST_SIMPLIFY, ST_DUMP, ST_CENTROID_AGG, ST_UNION_AGG).
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Phase29Tests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

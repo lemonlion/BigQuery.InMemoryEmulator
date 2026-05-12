@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// PIVOT/UNPIVOT, IN subquery, MERGE, and string functions.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class ParityVerificationTests4 : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

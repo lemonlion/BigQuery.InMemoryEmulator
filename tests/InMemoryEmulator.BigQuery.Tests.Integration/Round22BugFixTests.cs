@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Also verifies ABS overflow behavior for MIN_INT64.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round22BugFixTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

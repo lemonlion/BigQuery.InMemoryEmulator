@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// window frame edge cases, subquery patterns, type coercion, and DML interactions.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class ParityVerificationTests5 : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

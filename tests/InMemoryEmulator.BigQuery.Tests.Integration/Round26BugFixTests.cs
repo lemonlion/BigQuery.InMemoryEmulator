@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// - CONTAINS_SUBSTR with NULL search string should return NULL (not True)
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round26BugFixTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

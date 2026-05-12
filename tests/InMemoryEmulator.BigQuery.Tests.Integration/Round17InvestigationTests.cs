@@ -7,7 +7,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Research round 17: NaN comparison, CAST formatting, OFFSET/ORDINAL edge cases, ANY_VALUE with all NULLs.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round17InvestigationTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

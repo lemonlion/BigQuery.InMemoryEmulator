@@ -444,7 +444,6 @@ public class Phase21FunctionTests : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_count_functions#hll_countextract
 	//   "Extracts a cardinality estimate of a single HLL++ sketch."
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task HllCountExtract_Merge_ReturnsCount()
 	{
 		var client = await _fixture.GetClientAsync();
@@ -480,7 +479,6 @@ public class Phase21FunctionTests : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/range-functions#range
 	//   "Constructs a range of DATE, DATETIME, or TIMESTAMP values."
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task Range_ConstructsRange()
 	{
 		var results = await Query("SELECT RANGE('2024-01-01', '2024-12-31') AS r");
@@ -493,7 +491,6 @@ public class Phase21FunctionTests : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/range-functions#range_start
 	//   "Gets the lower bound of a range."
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task RangeStart_ReturnsLowerBound()
 	{
 		var results = await Query("SELECT RANGE_START(RANGE('2024-01-01', '2024-12-31')) AS s");
@@ -504,7 +501,6 @@ public class Phase21FunctionTests : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/range-functions#range_end
 	//   "Gets the upper bound of a range."
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task RangeEnd_ReturnsUpperBound()
 	{
 		var results = await Query("SELECT RANGE_END(RANGE('2024-01-01', '2024-12-31')) AS e");
@@ -515,7 +511,6 @@ public class Phase21FunctionTests : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/range-functions#range_contains
 	//   "Checks if a value or range is contained within another range."
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task RangeContains_ValueInRange()
 	{
 		var results = await Query(
@@ -527,7 +522,6 @@ public class Phase21FunctionTests : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/range-functions#range_overlaps
 	//   "Checks if two ranges overlap."
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task RangeOverlaps_OverlappingRanges()
 	{
 		var results = await Query(
@@ -538,7 +532,6 @@ public class Phase21FunctionTests : IAsyncLifetime
 
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/range-functions#range_overlaps
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 	public async Task RangeOverlaps_NonOverlapping()
 	{
 		var results = await Query(

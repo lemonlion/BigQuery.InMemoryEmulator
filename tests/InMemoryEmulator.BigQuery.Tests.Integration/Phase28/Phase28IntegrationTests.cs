@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration.Phase28;
 /// NET functions, AEAD encryption, procedural language, and utility functions.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Phase28IntegrationTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

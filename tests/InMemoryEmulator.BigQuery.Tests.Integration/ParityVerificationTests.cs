@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// Each test exercises a specific BigQuery behavior documented in the official reference.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class ParityVerificationTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

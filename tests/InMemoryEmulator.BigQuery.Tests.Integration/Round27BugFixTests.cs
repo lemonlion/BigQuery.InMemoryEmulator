@@ -9,7 +9,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// - Set operation schema compatibility with NULL-inferred types
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round27BugFixTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

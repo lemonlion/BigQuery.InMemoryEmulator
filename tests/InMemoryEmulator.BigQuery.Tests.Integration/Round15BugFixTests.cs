@@ -10,7 +10,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// - JSON_EXTRACT with consecutive array indices
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round15BugFixTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// and miscellaneous SQL expression edge cases.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class SqlExpressionAdvancedTests : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;

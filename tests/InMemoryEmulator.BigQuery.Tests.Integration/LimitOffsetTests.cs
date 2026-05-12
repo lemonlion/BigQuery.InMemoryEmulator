@@ -4,7 +4,6 @@ using Xunit;
 namespace InMemoryEmulator.BigQuery.Tests.Integration;
 
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class LimitOffsetTests : IAsyncLifetime
 {
     private readonly BigQuerySession _session;

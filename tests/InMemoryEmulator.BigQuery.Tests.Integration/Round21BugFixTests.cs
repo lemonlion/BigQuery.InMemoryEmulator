@@ -10,7 +10,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// 3. EvaluateWithAggregates crashing on empty groupRows (IndexOutOfRange)
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class Round21BugFixTests : IAsyncLifetime
 {
     private readonly BigQuerySession _session;

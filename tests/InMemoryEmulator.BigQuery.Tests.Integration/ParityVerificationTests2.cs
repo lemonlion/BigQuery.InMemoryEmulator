@@ -8,7 +8,6 @@ namespace InMemoryEmulator.BigQuery.Tests.Integration;
 /// string aggregation, complex joins, window functions, and other known gaps.
 /// </summary>
 [Collection(IntegrationCollection.Name)]
-[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
 public class ParityVerificationTests2 : IAsyncLifetime
 {
 	private readonly BigQuerySession _session;
