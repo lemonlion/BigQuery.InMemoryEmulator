@@ -9,6 +9,7 @@ namespace InMemoryEmulator.BigQuery.Tests.Infrastructure;
 /// xUnit collection fixture — singleton shared by all integration tests.
 /// Reads <c>BIGQUERY_TEST_TARGET</c> to determine which backend to use.
 /// Manages Docker container lifecycle for the goccy/bigquery-emulator target.
+/// Includes automatic crash detection and container restart.
 /// </summary>
 public class BigQuerySession : IAsyncLifetime
 {
@@ -19,9 +20,11 @@ public class BigQuerySession : IAsyncLifetime
 	public BigQueryClient? RemoteClient { get; private set; }
 
 	private string? _containerId;
+	private bool _externalEmulator;
 	private const string EmulatorImage = "ghcr.io/goccy/bigquery-emulator:0.6.6";
 	private const int EmulatorRestPort = 9050;
 	private const string EmulatorProjectId = "test-project";
+	private readonly SemaphoreSlim _restartLock = new(1, 1);
 
 	public ValueTask InitializeAsync()
 	{
@@ -52,8 +55,18 @@ public class BigQuerySession : IAsyncLifetime
 
 	private async Task InitializeEmulatorAsync()
 	{
-		await StartEmulatorContainerAsync();
+		_externalEmulator = !string.IsNullOrEmpty(
+			Environment.GetEnvironmentVariable("BIGQUERY_EMULATOR_EXTERNAL"));
 
+		if (!_externalEmulator)
+			await StartEmulatorContainerAsync();
+
+		await RebuildClientAsync();
+	}
+
+	private async Task RebuildClientAsync()
+	{
+		RemoteClient?.Dispose();
 		var builder = new BigQueryClientBuilder
 		{
 			ProjectId = EmulatorProjectId,
@@ -63,13 +76,59 @@ public class BigQuerySession : IAsyncLifetime
 		RemoteClient = await builder.BuildAsync();
 	}
 
+	/// <summary>
+	/// Checks if the emulator is still alive. If it has crashed, restarts the container
+	/// and rebuilds the client. This should be called when a test detects a connection failure.
+	/// When the emulator is externally managed (CI), only rebuilds the client connection.
+	/// </summary>
+	public async Task EnsureEmulatorHealthyAsync()
+	{
+		if (Target != TestTarget.BigQueryEmulator)
+			return;
+
+		await _restartLock.WaitAsync();
+		try
+		{
+			if (await IsEmulatorHealthyAsync())
+				return;
+
+			if (!_externalEmulator)
+			{
+				// Emulator has crashed — stop the dead container and restart
+				await StopContainerAsync();
+				await StartEmulatorContainerAsync();
+			}
+
+			await RebuildClientAsync();
+		}
+		finally
+		{
+			_restartLock.Release();
+		}
+	}
+
+	private async Task<bool> IsEmulatorHealthyAsync()
+	{
+		try
+		{
+			using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+			var healthUrl = $"http://localhost:{EmulatorRestPort}/bigquery/v2/projects/{EmulatorProjectId}/datasets";
+			var response = await httpClient.GetAsync(healthUrl);
+			return response.IsSuccessStatusCode;
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
 	private async Task StartEmulatorContainerAsync()
 	{
-		// Start the goccy/bigquery-emulator Docker container
+		// Start the goccy/bigquery-emulator Docker container with memory limit to prevent host OOM
 		var startInfo = new ProcessStartInfo
 		{
 			FileName = "docker",
-			Arguments = $"run -d --rm -p {EmulatorRestPort}:{EmulatorRestPort} {EmulatorImage} --project={EmulatorProjectId}",
+			Arguments = $"run -d -p {EmulatorRestPort}:{EmulatorRestPort} --memory=2g --name bq-emulator-{Guid.NewGuid():N} {EmulatorImage} --project={EmulatorProjectId}",
 			RedirectStandardOutput = true,
 			RedirectStandardError = true,
 			UseShellExecute = false,
@@ -91,7 +150,7 @@ public class BigQuerySession : IAsyncLifetime
 		// Health check with retry
 		using var httpClient = new HttpClient();
 		var healthUrl = $"http://localhost:{EmulatorRestPort}/bigquery/v2/projects/{EmulatorProjectId}/datasets";
-		var maxRetries = 20;
+		var maxRetries = 30;
 		for (var i = 0; i < maxRetries; i++)
 		{
 			try
@@ -105,37 +164,45 @@ public class BigQuerySession : IAsyncLifetime
 				// Container not ready yet
 			}
 
-			await Task.Delay(TimeSpan.FromMilliseconds(500 * (i + 1)));
+			await Task.Delay(TimeSpan.FromMilliseconds(500));
 		}
 
 		throw new InvalidOperationException(
 			$"Emulator container failed to become healthy after {maxRetries} retries");
 	}
 
+	private async Task StopContainerAsync()
+	{
+		if (_containerId is null)
+			return;
+
+		try
+		{
+			var stopInfo = new ProcessStartInfo
+			{
+				FileName = "docker",
+				Arguments = $"rm -f {_containerId}",
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				UseShellExecute = false,
+			};
+			using var process = Process.Start(stopInfo);
+			if (process is not null)
+				await process.WaitForExitAsync();
+		}
+		catch
+		{
+			// Best-effort cleanup
+		}
+
+		_containerId = null;
+	}
+
 	public async ValueTask DisposeAsync()
 	{
 		RemoteClient?.Dispose();
 
-		if (_containerId is not null)
-		{
-			try
-			{
-				var stopInfo = new ProcessStartInfo
-				{
-					FileName = "docker",
-					Arguments = $"stop {_containerId}",
-					RedirectStandardOutput = true,
-					RedirectStandardError = true,
-					UseShellExecute = false,
-				};
-				using var process = Process.Start(stopInfo);
-				if (process is not null)
-					await process.WaitForExitAsync();
-			}
-			catch
-			{
-				// Best-effort cleanup
-			}
-		}
+		if (!_externalEmulator)
+			await StopContainerAsync();
 	}
 }

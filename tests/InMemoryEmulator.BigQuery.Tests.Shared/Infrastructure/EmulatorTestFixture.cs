@@ -5,6 +5,7 @@ namespace InMemoryEmulator.BigQuery.Tests.Infrastructure;
 
 /// <summary>
 /// Fixture that creates datasets and tables against the goccy/bigquery-emulator Docker container.
+/// Includes automatic recovery when the emulator crashes and is restarted.
 /// </summary>
 public sealed class EmulatorTestFixture : ITestDatasetFixture
 {
@@ -16,10 +17,17 @@ public sealed class EmulatorTestFixture : ITestDatasetFixture
 	public TestTarget Target => TestTarget.BigQueryEmulator;
 	public bool IsRemote => true;
 
-	public Task<BigQueryClient> GetClientAsync()
+	public async Task<BigQueryClient> GetClientAsync()
 	{
-		return Task.FromResult(_session.RemoteClient
-			?? throw new InvalidOperationException("Emulator client not initialized"));
+		// Always return the session's current client — it may have been rebuilt after a crash restart
+		var client = _session.RemoteClient;
+		if (client is null)
+		{
+			await _session.EnsureEmulatorHealthyAsync();
+			client = _session.RemoteClient
+				?? throw new InvalidOperationException("Emulator client not initialized");
+		}
+		return client;
 	}
 
 	public async Task<BigQueryDataset> CreateDatasetAsync(

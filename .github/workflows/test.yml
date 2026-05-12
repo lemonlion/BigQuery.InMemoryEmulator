@@ -29,9 +29,33 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet test --configuration Release --filter "Target!=InMemoryOnly&Target!=CloudOnly&Target!=EmulatorDivergence" --logger "trx;LogFileName=results.trx"
+      - name: Start BigQuery emulator
+        run: |
+          docker run -d --name bq-emulator -p 9050:9050 --memory=2g \
+            ghcr.io/goccy/bigquery-emulator:0.6.6 --project=test-project
+          # Wait for emulator to be ready
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9050/bigquery/v2/projects/test-project/datasets > /dev/null 2>&1; then
+              echo "Emulator ready"
+              break
+            fi
+            sleep 1
+          done
+      - name: Run tests
+        run: |
+          dotnet test --configuration Release \
+            --filter "Target!=InMemoryOnly&Target!=CloudOnly&Target!=EmulatorDivergence" \
+            --logger "trx;LogFileName=results.trx" \
+            -- RunConfiguration.MaxCpuCount=1
         env:
           BIGQUERY_TEST_TARGET: emulator
+          BIGQUERY_EMULATOR_EXTERNAL: "true"
+      - name: Emulator logs on failure
+        if: failure()
+        run: docker logs bq-emulator 2>&1 | tail -200
+      - name: Stop emulator
+        if: always()
+        run: docker rm -f bq-emulator || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
