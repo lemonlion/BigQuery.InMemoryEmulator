@@ -179,7 +179,7 @@ public class MathFunctionDeepTests : IAsyncLifetime
     {
         var result = await Scalar("SELECT IEEE_DIVIDE(10, 0)");
         Assert.NotNull(result);
-        Assert.Contains("\u221E", result!); // Infinity symbol
+        Assert.Contains("Infinity", result!); // BigQuery returns "Infinity" for +inf
     }
 
     // RAND

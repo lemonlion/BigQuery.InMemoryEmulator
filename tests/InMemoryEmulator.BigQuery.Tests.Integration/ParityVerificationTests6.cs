@@ -541,14 +541,14 @@ public class ParityVerificationTests6 : IAsyncLifetime
 	public async Task IeeeDivide_ByZero_ReturnsInfinity()
 	{
 		var result = await S("SELECT IEEE_DIVIDE(1, 0)");
-		Assert.Equal(double.PositiveInfinity.ToString(), result);
+		Assert.Equal("Infinity", result);
 	}
 
 	[Fact]
 	public async Task IeeeDivide_ZeroByZero_ReturnsNaN()
 	{
 		var result = await S("SELECT IEEE_DIVIDE(0, 0)");
-		Assert.Equal(double.NaN.ToString(), result);
+		Assert.Equal("NaN", result);
 	}
 
 	// ===== ARRAY_LENGTH =====

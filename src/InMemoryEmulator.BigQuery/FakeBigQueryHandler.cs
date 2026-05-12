@@ -477,6 +477,22 @@ public class FakeBigQueryHandler : HttpMessageHandler
 		{
 			return array.Select(item => new TableCell { V = ConvertValueToString(item) }).ToList();
 		}
+		// Ref: BigQuery REST API returns FLOAT64 special values as explicit strings
+		//   to ensure consistent cross-platform behavior (double.ToString() is culture-dependent).
+		if (value is double d)
+		{
+			if (double.IsPositiveInfinity(d)) return "Infinity";
+			if (double.IsNegativeInfinity(d)) return "-Infinity";
+			if (double.IsNaN(d)) return "NaN";
+			return d.ToString(System.Globalization.CultureInfo.InvariantCulture);
+		}
+		if (value is float f)
+		{
+			if (float.IsPositiveInfinity(f)) return "Infinity";
+			if (float.IsNegativeInfinity(f)) return "-Infinity";
+			if (float.IsNaN(f)) return "NaN";
+			return f.ToString(System.Globalization.CultureInfo.InvariantCulture);
+		}
 		return value.ToString();
 	}
 
