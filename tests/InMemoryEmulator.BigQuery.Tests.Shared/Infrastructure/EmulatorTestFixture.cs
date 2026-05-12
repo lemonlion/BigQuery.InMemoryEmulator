@@ -1,3 +1,5 @@
+using System.Net.Http;
+using System.Net.Sockets;
 using Google.Apis.Bigquery.v2.Data;
 using Google.Cloud.BigQuery.V2;
 
@@ -34,10 +36,13 @@ public sealed class EmulatorTestFixture : ITestDatasetFixture
 		string datasetId,
 		CreateDatasetOptions? options = null)
 	{
-		var client = await GetClientAsync();
-		var dataset = await client.CreateDatasetAsync(datasetId, options: options);
-		_createdDatasets.Add(datasetId);
-		return dataset;
+		return await WithEmulatorRecoveryAsync(async () =>
+		{
+			var client = await GetClientAsync();
+			var dataset = await client.CreateDatasetAsync(datasetId, options: options);
+			_createdDatasets.Add(datasetId);
+			return dataset;
+		});
 	}
 
 	public async Task<BigQueryTable> CreateTableAsync(
@@ -46,8 +51,36 @@ public sealed class EmulatorTestFixture : ITestDatasetFixture
 		TableSchema schema,
 		CreateTableOptions? options = null)
 	{
-		var client = await GetClientAsync();
-		return await client.CreateTableAsync(datasetId, tableId, schema, options);
+		return await WithEmulatorRecoveryAsync(async () =>
+		{
+			var client = await GetClientAsync();
+			return await client.CreateTableAsync(datasetId, tableId, schema, options);
+		});
+	}
+
+	/// <summary>
+	/// Executes an operation against the emulator, retrying once after crash recovery.
+	/// </summary>
+	private async Task<T> WithEmulatorRecoveryAsync<T>(Func<Task<T>> operation)
+	{
+		try
+		{
+			return await operation();
+		}
+		catch (Exception ex) when (IsEmulatorCrashException(ex))
+		{
+			// Emulator crashed — wait for recovery and retry
+			await _session.EnsureEmulatorHealthyAsync();
+			return await operation();
+		}
+	}
+
+	private static bool IsEmulatorCrashException(Exception ex)
+	{
+		return ex is HttpRequestException
+			|| ex.InnerException is HttpRequestException
+			|| ex.InnerException is SocketException
+			|| ex.InnerException is IOException;
 	}
 
 	public async ValueTask DisposeAsync()

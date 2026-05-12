@@ -77,9 +77,8 @@ public class BigQuerySession : IAsyncLifetime
 	}
 
 	/// <summary>
-	/// Checks if the emulator is still alive. If it has crashed, restarts the container
-	/// and rebuilds the client. This should be called when a test detects a connection failure.
-	/// When the emulator is externally managed (CI), only rebuilds the client connection.
+	/// Checks if the emulator is still alive. If it has crashed, waits for it to recover
+	/// (via Docker restart policy or manual restart) and rebuilds the client.
 	/// </summary>
 	public async Task EnsureEmulatorHealthyAsync()
 	{
@@ -94,9 +93,14 @@ public class BigQuerySession : IAsyncLifetime
 
 			if (!_externalEmulator)
 			{
-				// Emulator has crashed — stop the dead container and restart
+				// Self-managed: stop the dead container and start a new one
 				await StopContainerAsync();
 				await StartEmulatorContainerAsync();
+			}
+			else
+			{
+				// Externally managed with restart policy: wait for Docker to restart it
+				await WaitForEmulatorRecoveryAsync();
 			}
 
 			await RebuildClientAsync();
@@ -105,6 +109,31 @@ public class BigQuerySession : IAsyncLifetime
 		{
 			_restartLock.Release();
 		}
+	}
+
+	private async Task WaitForEmulatorRecoveryAsync()
+	{
+		using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+		var healthUrl = $"http://localhost:{EmulatorRestPort}/bigquery/v2/projects/{EmulatorProjectId}/datasets";
+		var maxRetries = 60; // Up to 30 seconds
+		for (var i = 0; i < maxRetries; i++)
+		{
+			try
+			{
+				var response = await httpClient.GetAsync(healthUrl);
+				if (response.IsSuccessStatusCode)
+					return;
+			}
+			catch
+			{
+				// Not ready yet
+			}
+
+			await Task.Delay(TimeSpan.FromMilliseconds(500));
+		}
+
+		throw new InvalidOperationException(
+			"Emulator failed to recover after crash — Docker restart may have exceeded retry limit");
 	}
 
 	private async Task<bool> IsEmulatorHealthyAsync()

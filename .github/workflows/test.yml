@@ -31,7 +31,7 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Start BigQuery emulator
         run: |
-          docker run -d --name bq-emulator -p 9050:9050 --memory=2g \
+          docker run -d --name bq-emulator -p 9050:9050 --memory=2g --restart=on-failure:5 \
             ghcr.io/goccy/bigquery-emulator:0.6.6 --project=test-project
           # Wait for emulator to be ready
           for i in $(seq 1 30); do
@@ -52,7 +52,10 @@ jobs:
           BIGQUERY_EMULATOR_EXTERNAL: "true"
       - name: Emulator logs on failure
         if: failure()
-        run: docker logs bq-emulator 2>&1 | tail -200
+        run: docker logs bq-emulator 2>&1 | tail -1000
+      - name: Emulator container status
+        if: failure()
+        run: docker inspect bq-emulator --format='{{.State.Status}} ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} RestartCount={{.RestartCount}}'
       - name: Stop emulator
         if: always()
         run: docker rm -f bq-emulator || true
