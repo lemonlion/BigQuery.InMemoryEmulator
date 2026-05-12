@@ -151,13 +151,25 @@ public class ParityVerificationTests19 : IAsyncLifetime
 		Assert.Equal("3,2,1", result);
 	}
 
-	[Fact] public async Task ArrayConcat_TwoArrays()
+	// Go emulator rejects ARRAY_TO_STRING with non-STRING arrays.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#array_to_string
+	//   "The value for array_expression can either be an array of STRING or BYTES data type."
+	//   BigQuery implicitly coerces INT64 to STRING, but the Go emulator does not.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task ArrayConcat_TwoArrays()
 	{
 		var result = await S("SELECT ARRAY_TO_STRING(ARRAY_CONCAT([1, 2], [3, 4]), ',')");
 		Assert.Equal("1,2,3,4", result);
 	}
 
-	[Fact] public async Task ArrayConcat_ThreeArrays()
+	// Go emulator rejects ARRAY_TO_STRING with non-STRING arrays.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#array_to_string
+	//   "The value for array_expression can either be an array of STRING or BYTES data type."
+	//   BigQuery implicitly coerces INT64 to STRING, but the Go emulator does not.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task ArrayConcat_ThreeArrays()
 	{
 		var result = await S("SELECT ARRAY_TO_STRING(ARRAY_CONCAT([1], [2], [3, 4]), ',')");
 		Assert.Equal("1,2,3,4", result);
@@ -287,13 +299,23 @@ public class ParityVerificationTests19 : IAsyncLifetime
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions
 	// ───────────────────────────────────────────────────────────────────────────
 
-	[Fact] public async Task Instr_Found()
+	// Go emulator errors: "invalid position number" when position arg omitted.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#instr
+	//   "If position is specified, the search starts at this position in value, otherwise it starts at 1."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Instr_Found()
 	{
 		var result = await S("SELECT INSTR('hello world', 'world')");
 		Assert.Equal("7", result);
 	}
 
-	[Fact] public async Task Instr_NotFound()
+	// Go emulator errors: "invalid position number" when position arg omitted.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#instr
+	//   "If position is specified, the search starts at this position in value, otherwise it starts at 1."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Instr_NotFound()
 	{
 		var result = await S("SELECT INSTR('hello', 'xyz')");
 		Assert.Equal("0", result);

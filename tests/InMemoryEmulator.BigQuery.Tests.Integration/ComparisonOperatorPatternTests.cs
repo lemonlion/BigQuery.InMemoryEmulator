@@ -59,7 +59,12 @@ public class ComparisonOperatorPatternTests : IAsyncLifetime
 	// Equality
 	[Fact] public async Task Eq_Int() => Assert.Equal("True", await Scalar("SELECT 5 = 5"));
 	[Fact] public async Task Eq_String() => Assert.Equal("True", await Scalar("SELECT 'abc' = 'abc'"));
-	[Fact] public async Task Eq_Null() => Assert.Null(await Scalar("SELECT NULL = NULL")); // NULL = NULL → NULL
+	// Go emulator errors: "Operands of = cannot be literal NULL"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#comparison_operators
+	//   "NULL: Any operation with a NULL input returns NULL."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Eq_Null() => Assert.Null(await Scalar("SELECT NULL = NULL")); // NULL = NULL → NULL
 	[Fact] public async Task Neq_Int() => Assert.Equal("True", await Scalar("SELECT 5 != 3"));
 	[Fact] public async Task Neq_IntFalse() => Assert.Equal("False", await Scalar("SELECT 5 != 5"));
 
@@ -72,9 +77,18 @@ public class ComparisonOperatorPatternTests : IAsyncLifetime
 	[Fact] public async Task Gt_String() => Assert.Equal("True", await Scalar("SELECT 'z' > 'a'"));
 
 	// NULL comparisons
-	[Fact] public async Task Lt_Null() => Assert.Null(await Scalar("SELECT 5 < NULL"));
-	[Fact] public async Task Gt_Null() => Assert.Null(await Scalar("SELECT NULL > 3"));
-	[Fact] public async Task Eq_NullValue() => Assert.Null(await Scalar("SELECT 5 = NULL"));
+	// Go emulator errors: "Operands of </>/= cannot be literal NULL"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#comparison_operators
+	//   "NULL: Any operation with a NULL input returns NULL."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Lt_Null() => Assert.Null(await Scalar("SELECT 5 < NULL"));
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Gt_Null() => Assert.Null(await Scalar("SELECT NULL > 3"));
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Eq_NullValue() => Assert.Null(await Scalar("SELECT 5 = NULL"));
 
 	// BETWEEN
 	[Fact] public async Task Between_True() => Assert.Equal("True", await Scalar("SELECT 5 BETWEEN 3 AND 7"));
@@ -93,7 +107,12 @@ public class ComparisonOperatorPatternTests : IAsyncLifetime
 	[Fact] public async Task In_IntFalse() => Assert.Equal("False", await Scalar("SELECT 6 IN (1, 3, 5, 7)"));
 	[Fact] public async Task In_String() => Assert.Equal("True", await Scalar("SELECT 'b' IN ('a', 'b', 'c')"));
 	[Fact] public async Task NotIn() => Assert.Equal("True", await Scalar("SELECT 6 NOT IN (1, 3, 5, 7)"));
-	[Fact] public async Task In_WithNull() => Assert.Null(await Scalar("SELECT 6 IN (1, NULL, 5)"));
+	// Go emulator returns FALSE instead of NULL
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#in_operator
+	//   "Returns NULL if the equality comparison between search_value and any value in value_set produces NULL."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task In_WithNull() => Assert.Null(await Scalar("SELECT 6 IN (1, NULL, 5)"));
 	[Fact] public async Task In_InWhere()
 	{
 		var rows = await Query("SELECT name FROM `{ds}.data` WHERE category IN ('A', 'C') ORDER BY name");
@@ -103,7 +122,12 @@ public class ComparisonOperatorPatternTests : IAsyncLifetime
 	// LIKE
 	[Fact] public async Task Like_Percent() => Assert.Equal("True", await Scalar("SELECT 'hello world' LIKE '%world'"));
 	[Fact] public async Task Like_PercentBoth() => Assert.Equal("True", await Scalar("SELECT 'hello world' LIKE '%llo wo%'"));
-	[Fact] public async Task Like_Underscore() => Assert.Equal("True", await Scalar("SELECT 'abc' LIKE 'a_c'"));
+	// Go emulator returns FALSE instead of TRUE
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#like_operator
+	//   "An underscore (_) matches a single character or byte."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Like_Underscore() => Assert.Equal("True", await Scalar("SELECT 'abc' LIKE 'a_c'"));
 	[Fact] public async Task Like_Exact() => Assert.Equal("True", await Scalar("SELECT 'abc' LIKE 'abc'"));
 	[Fact] public async Task Like_False() => Assert.Equal("False", await Scalar("SELECT 'abc' LIKE 'xyz'"));
 	[Fact] public async Task Like_CaseSensitive() => Assert.Equal("False", await Scalar("SELECT 'ABC' LIKE 'abc'"));

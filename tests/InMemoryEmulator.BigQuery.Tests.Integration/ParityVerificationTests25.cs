@@ -60,7 +60,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	// Table-based operations: Create, Insert, Select, Update, Delete
 	// ───────────────────────────────────────────────────────────────────────────
 
-	[Fact] public async Task Table_CreateInsertSelect()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_CreateInsertSelect()
 	{
 		await Exec("CREATE TABLE `{ds}.employees` (id INT64, name STRING, dept STRING, salary FLOAT64)");
 		await Exec("INSERT INTO `{ds}.employees` VALUES (1, 'Alice', 'Eng', 95000)");
@@ -76,7 +81,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("Bob", rows[1][0]?.ToString());
 	}
 
-	[Fact] public async Task Table_AggregateByDept()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_AggregateByDept()
 	{
 		await Exec("CREATE TABLE `{ds}.staff` (id INT64, name STRING, dept STRING, salary FLOAT64)");
 		await Exec("INSERT INTO `{ds}.staff` VALUES (1, 'Alice', 'Eng', 95000), (2, 'Bob', 'Eng', 85000), (3, 'Charlie', 'Sales', 70000), (4, 'Diana', 'Sales', 80000), (5, 'Eve', 'HR', 75000)");
@@ -92,7 +102,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("2", rows[2][1]?.ToString());
 	}
 
-	[Fact] public async Task Table_UpdateWithWhere()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_UpdateWithWhere()
 	{
 		await Exec("CREATE TABLE `{ds}.products` (id INT64, name STRING, price FLOAT64)");
 		await Exec("INSERT INTO `{ds}.products` VALUES (1, 'Widget', 10.0), (2, 'Gadget', 20.0), (3, 'Doohickey', 30.0)");
@@ -104,7 +119,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("33", rows[2][1]?.ToString()); // 30 * 1.1
 	}
 
-	[Fact] public async Task Table_DeleteWithWhere()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_DeleteWithWhere()
 	{
 		await Exec("CREATE TABLE `{ds}.items` (id INT64, name STRING, active BOOL)");
 		await Exec("INSERT INTO `{ds}.items` VALUES (1, 'A', TRUE), (2, 'B', FALSE), (3, 'C', TRUE), (4, 'D', FALSE)");
@@ -116,7 +136,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("C", rows[1][0]?.ToString());
 	}
 
-	[Fact] public async Task Table_JoinTwoTables()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_JoinTwoTables()
 	{
 		await Exec("CREATE TABLE `{ds}.orders` (id INT64, customer_id INT64, amount FLOAT64)");
 		await Exec("CREATE TABLE `{ds}.customers` (id INT64, name STRING)");
@@ -134,7 +159,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("30", rows[1][1]?.ToString());
 	}
 
-	[Fact] public async Task Table_LeftJoinWithNull()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_LeftJoinWithNull()
 	{
 		await Exec("CREATE TABLE `{ds}.ordersx` (id INT64, cust_id INT64, amount FLOAT64)");
 		await Exec("CREATE TABLE `{ds}.custs` (id INT64, name STRING)");
@@ -154,7 +184,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("0", rows[2][1]?.ToString());
 	}
 
-	[Fact] public async Task Table_WindowFunctionOverTable()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_WindowFunctionOverTable()
 	{
 		await Exec("CREATE TABLE `{ds}.sales` (id INT64, region STRING, amount FLOAT64)");
 		await Exec("INSERT INTO `{ds}.sales` VALUES (1, 'East', 100), (2, 'East', 200), (3, 'West', 150), (4, 'West', 250), (5, 'West', 350)");
@@ -172,7 +207,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("2", rows[1][2]?.ToString());
 	}
 
-	[Fact] public async Task Table_SubqueryFilter()
+	// Go emulator requires column list in INSERT VALUES.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_SubqueryFilter()
 	{
 		await Exec("CREATE TABLE `{ds}.catalog` (id INT64, name STRING, category STRING, price FLOAT64)");
 		await Exec("INSERT INTO `{ds}.catalog` VALUES (1, 'A', 'Electronics', 500), (2, 'B', 'Electronics', 1000), (3, 'C', 'Books', 20), (4, 'D', 'Books', 50)");
@@ -187,7 +227,12 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("A", rows[1][0]?.ToString());
 	}
 
-	[Fact] public async Task Table_InsertSelectFrom()
+	// Go emulator requires column list in INSERT VALUES and INSERT ... SELECT without column list.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_InsertSelectFrom()
 	{
 		await Exec("CREATE TABLE `{ds}.source` (id INT64, val STRING)");
 		await Exec("CREATE TABLE `{ds}.target` (id INT64, val STRING)");
@@ -200,7 +245,14 @@ public class ParityVerificationTests25 : IAsyncLifetime
 		Assert.Equal("c", rows[1][0]?.ToString());
 	}
 
-	[Fact] public async Task Table_MergeUpsert()
+	// Go emulator requires column list in INSERT VALUES; also fails MERGE with "zetasqlite_merged_table already exists".
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement
+	//   MERGE is valid BigQuery DML; the Go emulator has an internal implementation bug.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Table_MergeUpsert()
 	{
 		await Exec("CREATE TABLE `{ds}.inventory` (id INT64, name STRING, qty INT64)");
 		await Exec("INSERT INTO `{ds}.inventory` VALUES (1, 'Widget', 10), (2, 'Gadget', 20)");

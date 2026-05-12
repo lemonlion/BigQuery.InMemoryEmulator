@@ -91,7 +91,12 @@ public class DmlComprehensiveTests : IAsyncLifetime
 		Assert.Null(rows[0]["name"]);
 	}
 
-	[Fact] public async Task Insert_Select()
+	// Go emulator requires column list in INSERT ... SELECT.
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#insert_statement
+	//   "Column names are optional if the target table is not an ingestion-time partitioned table."
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Insert_Select()
 	{
 		await CreateSimpleTable("t4a");
 		await CreateSimpleTable("t4b");
@@ -101,7 +106,12 @@ public class DmlComprehensiveTests : IAsyncLifetime
 		Assert.Equal("1", rows[0][0]?.ToString());
 	}
 
-	[Fact] public async Task Insert_Select_WithTransformation()
+	// Go emulator rejects FLOAT64 literal insertion: "DOUBLE cannot be inserted into FLOAT"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
+	//   BigQuery FLOAT is an alias for FLOAT64; the Go emulator incorrectly rejects DOUBLE literals.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Insert_Select_WithTransformation()
 	{
 		await CreateSimpleTable("t5a");
 		await CreateSimpleTable("t5b");
@@ -158,7 +168,12 @@ public class DmlComprehensiveTests : IAsyncLifetime
 		Assert.All(rows, r => Assert.True(r["value"]?.ToString() == "0" || r["value"]?.ToString() == "0.0"));
 	}
 
-	[Fact] public async Task Update_WithExpression()
+	// Go emulator rejects FLOAT64 literal insertion: "DOUBLE cannot be inserted into FLOAT"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
+	//   BigQuery FLOAT is an alias for FLOAT64; the Go emulator incorrectly rejects DOUBLE literals.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Update_WithExpression()
 	{
 		await CreateSimpleTable("t11");
 		await Exec($"INSERT INTO `{_datasetId}.t11` (id, name, value) VALUES (1, 'hello', 10.0)");
@@ -203,7 +218,12 @@ public class DmlComprehensiveTests : IAsyncLifetime
 	}
 
 	// ---- MERGE ----
-	[Fact] public async Task Merge_InsertAndUpdate()
+	// Go emulator fails MERGE with internal error: "zetasqlite_merged_table already exists"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement
+	//   MERGE is valid BigQuery DML; the Go emulator has an internal implementation bug.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Merge_InsertAndUpdate()
 	{
 		await CreateSimpleTable("target1");
 		await CreateSimpleTable("source1");
@@ -221,7 +241,12 @@ public class DmlComprehensiveTests : IAsyncLifetime
 		Assert.Equal("New", rows[1]["name"]?.ToString());
 	}
 
-	[Fact] public async Task Merge_Delete()
+	// Go emulator fails MERGE with internal error: "zetasqlite_merged_table already exists"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement
+	//   MERGE is valid BigQuery DML; the Go emulator has an internal implementation bug.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Merge_Delete()
 	{
 		await CreateSimpleTable("target2");
 		await CreateSimpleTable("source2");
@@ -235,7 +260,12 @@ public class DmlComprehensiveTests : IAsyncLifetime
 		Assert.Equal("1", await Scalar($"SELECT COUNT(*) FROM `{_datasetId}.target2`"));
 	}
 
-	[Fact] public async Task Merge_ConditionalMatch()
+	// Go emulator fails MERGE with internal error: "zetasqlite_merged_table already exists"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement
+	//   MERGE is valid BigQuery DML; the Go emulator has an internal implementation bug.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Merge_ConditionalMatch()
 	{
 		await CreateSimpleTable("target3");
 		await CreateSimpleTable("source3");
@@ -253,7 +283,12 @@ public class DmlComprehensiveTests : IAsyncLifetime
 	}
 
 	// ---- INSERT with expression computations ----
-	[Fact] public async Task Insert_WithComputedExpressions()
+	// Go emulator rejects FLOAT64 literal insertion: "DOUBLE cannot be inserted into FLOAT"
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
+	//   BigQuery FLOAT is an alias for FLOAT64; the Go emulator incorrectly rejects DOUBLE literals.
+	[Fact]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
+	public async Task Insert_WithComputedExpressions()
 	{
 		await CreateSimpleTable("t16");
 		await Exec($"INSERT INTO `{_datasetId}.t16` (id, name, value) VALUES (1, CONCAT('Hello', ' ', 'World'), 2.0 * 3.0)");
