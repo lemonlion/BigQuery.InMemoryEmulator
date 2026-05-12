@@ -188,13 +188,12 @@ public class ParityVerificationTests41 : IAsyncLifetime
 	}
 
 	// BigQuery docs: MOD only accepts INT64, UINT64, NUMERIC, BIGNUMERIC — not FLOAT64
-	// The in-memory emulator extends this as a convenience but the Go emulator rejects it
+	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#mod
+	//   Return type table shows only INT64, NUMERIC, BIGNUMERIC.
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
-	public async Task Mod_FloatValid_ReturnsCorrect()
+	public async Task Mod_FloatInputs_ThrowsError()
 	{
-		var result = await ScalarAsync("SELECT MOD(5.5, 2.0)");
-		Assert.Equal("1.5", result);
+		await AssertThrowsAsync("SELECT MOD(5.5, 2.0)");
 	}
 
 	// ============================================================
@@ -202,26 +201,18 @@ public class ParityVerificationTests41 : IAsyncLifetime
 	// ============================================================
 
 	// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#div
-	//   "Division of X by Y, rounded toward zero to the nearest integer."
+	//   Return type table shows only INT64, NUMERIC, BIGNUMERIC — FLOAT64 is not supported.
 	// BigQuery docs: DIV only accepts INT64, UINT64, NUMERIC, BIGNUMERIC — not FLOAT64
-	// The in-memory emulator extends this as a convenience but the Go emulator rejects it
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
-	public async Task Div_FloatInputs_DividesThenTruncates()
+	public async Task Div_FloatInputs_ThrowsError()
 	{
-		// DIV(1.5, 0.7) = TRUNC(1.5/0.7) = TRUNC(2.14...) = 2
-		var result = await ScalarAsync("SELECT DIV(1.5, 0.7)");
-		Assert.Equal("2", result);
+		await AssertThrowsAsync("SELECT DIV(1.5, 0.7)");
 	}
 
-	// BigQuery docs: DIV only accepts INT64, UINT64, NUMERIC, BIGNUMERIC — not FLOAT64
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
-	public async Task Div_FloatInputs_NegativeResult()
+	public async Task Div_FloatInputs_Negative_ThrowsError()
 	{
-		// DIV(-7.5, 2.0) = TRUNC(-7.5/2.0) = TRUNC(-3.75) = -3
-		var result = await ScalarAsync("SELECT DIV(-7.5, 2.0)");
-		Assert.Equal("-3", result);
+		await AssertThrowsAsync("SELECT DIV(-7.5, 2.0)");
 	}
 
 	[Fact]

@@ -3383,7 +3383,10 @@ var b = Evaluate(args[1], row);
 if (a is null || b is null) return null;
 if (a is long la && b is long lb) return lb == 0 ? throw new DivideByZeroException() : la % lb;
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#mod
+//   Return type table shows only INT64, NUMERIC, BIGNUMERIC — FLOAT64 is not supported.
 //   "Generates a division by zero error if Y is 0."
+if (a is double || b is double || a is float || b is float)
+    throw new InvalidOperationException("MOD does not support FLOAT64 inputs. Supported types: INT64, NUMERIC, BIGNUMERIC.");
 var db = ToDouble(b);
 if (db == 0.0) throw new DivideByZeroException();
 return ToDouble(a) % db;
@@ -3460,7 +3463,10 @@ var a = Evaluate(args[0], row);
 var b = Evaluate(args[1], row);
 if (a is null || b is null) return null;
 // Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions#div
+//   Return type table shows only INT64, NUMERIC, BIGNUMERIC — FLOAT64 is not supported.
 //   "Division of X by Y, rounded toward zero to the nearest integer."
+if (a is double || b is double || a is float || b is float)
+    throw new InvalidOperationException("DIV does not support FLOAT64 inputs. Supported types: INT64, NUMERIC, BIGNUMERIC.");
 if (a is long la && b is long lb)
 {
     if (lb == 0) throw new DivideByZeroException();

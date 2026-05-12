@@ -40,7 +40,7 @@ public class ComplexExpressionTests : IAsyncLifetime
 	// ---- Math nesting ----
 	[Fact] public async Task AbsSqrt() => Assert.Equal("5", await Scalar("SELECT CAST(SQRT(ABS(-25)) AS INT64)"));
 	[Fact] public async Task RoundDivide() => Assert.Equal("3", await Scalar("SELECT ROUND(10.0 / 3.0)"));
-	[Fact] public async Task CeilMod() => Assert.Equal("3", await Scalar("SELECT CAST(CEIL(MOD(5.5, 3.0)) AS INT64)"));
+	[Fact] public async Task CeilMod() => Assert.Equal("3", await Scalar("SELECT CAST(CEIL(MOD(11, 4)) AS INT64)"));
 	[Fact] public async Task FloorPow() => Assert.Equal("9", await Scalar("SELECT CAST(FLOOR(POW(2.1, 3)) AS INT64)"));
 	[Fact] public async Task SignAbs() => Assert.Equal("1", await Scalar("SELECT SIGN(ABS(-42))"));
 	[Fact] public async Task ModDiv() => Assert.Equal("1", await Scalar("SELECT MOD(DIV(10, 3), 2)"));

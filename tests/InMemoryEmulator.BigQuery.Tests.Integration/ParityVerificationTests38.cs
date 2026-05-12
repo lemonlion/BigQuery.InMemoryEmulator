@@ -165,15 +165,15 @@ public class ParityVerificationTests38 : IAsyncLifetime
 	[Fact]
 	public async Task IeeeDivide_ByZero_ReturnsInfinity()
 	{
-		var result = await ScalarAsync("SELECT IEEE_DIVIDE(1.0, 0.0)");
-		Assert.Equal("Infinity", result); // BigQuery REST API returns "Infinity" for +inf
+		var result = await ScalarAsync("SELECT CAST(IEEE_DIVIDE(1.0, 0.0) AS STRING)");
+		Assert.Equal("inf", result);
 	}
 
 	[Fact]
 	public async Task IeeeDivide_NegativeByZero_ReturnsNegInf()
 	{
-		var result = await ScalarAsync("SELECT IEEE_DIVIDE(-1.0, 0.0)");
-		Assert.Equal("-Infinity", result); // BigQuery REST API returns "-Infinity" for -inf
+		var result = await ScalarAsync("SELECT CAST(IEEE_DIVIDE(-1.0, 0.0) AS STRING)");
+		Assert.Equal("-inf", result);
 	}
 
 	[Fact]

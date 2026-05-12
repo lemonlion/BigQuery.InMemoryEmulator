@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet test --configuration Release --filter "Target!=InMemoryOnly&Target!=CloudOnly" --logger "trx;LogFileName=results.trx"
+      - run: dotnet test --configuration Release --filter "Target!=InMemoryOnly&Target!=CloudOnly&Target!=EmulatorDivergence" --logger "trx;LogFileName=results.trx"
         env:
           BIGQUERY_TEST_TARGET: emulator
       - uses: actions/upload-artifact@v4

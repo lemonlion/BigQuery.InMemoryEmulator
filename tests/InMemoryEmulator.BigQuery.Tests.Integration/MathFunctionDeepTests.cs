@@ -177,9 +177,8 @@ public class MathFunctionDeepTests : IAsyncLifetime
     // IEEE_DIVIDE
     [Fact] public async Task IeeeDivide_ByZero()
     {
-        var result = await Scalar("SELECT IEEE_DIVIDE(10, 0)");
-        Assert.NotNull(result);
-        Assert.Contains("Infinity", result!); // BigQuery returns "Infinity" for +inf
+        var result = await Scalar("SELECT CAST(IEEE_DIVIDE(10, 0) AS STRING)");
+        Assert.Equal("inf", result);
     }
 
     // RAND

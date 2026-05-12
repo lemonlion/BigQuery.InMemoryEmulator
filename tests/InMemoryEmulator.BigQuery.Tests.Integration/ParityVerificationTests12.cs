@@ -57,7 +57,7 @@ public class ParityVerificationTests12 : IAsyncLifetime
 
 	// Go emulator returns ISO8601 format (2024-01-01T00:00:00Z) instead of BigQuery format (2024-01-01 00:00:00+00)
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task TimestampTrunc_Isoyear()
 	{
 		// ISO year 2024 starts Mon 2024-01-01
@@ -67,7 +67,7 @@ public class ParityVerificationTests12 : IAsyncLifetime
 
 	// Go emulator returns ISO8601 format instead of BigQuery format
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task TimestampTrunc_Isoyear_2023()
 	{
 		// ISO year 2023 starts Mon 2023-01-02
@@ -94,7 +94,7 @@ public class ParityVerificationTests12 : IAsyncLifetime
 
 	// Go emulator returns "15" instead of "15.0" for CAST(AVG(...) AS STRING)
 	[Fact]
-	[Trait(TestTraits.Target, TestTraits.InMemoryOnly)]
+	[Trait(TestTraits.Target, TestTraits.EmulatorDivergence)]
 	public async Task WindowAvg_BetweenPrecedingAndFollowing()
 	{
 		var rows = await Q(@"
