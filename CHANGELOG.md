@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.104] - 2026-05-13
+
+### Added
+- `WithHttpMessageHandlerWrapper()` on `InMemoryBigQueryOptions` and `InMemoryBigQueryBuilder` — allows wrapping the `FakeBigQueryHandler` with additional `DelegatingHandler` instances for HTTP-level observability (e.g. TestTrackingDiagrams integration)
+- `HttpMessageHandlerWrapper` property on `InMemoryBigQueryOptions` for direct property-style configuration
+- Wrapper is automatically wired through the `UseInMemoryBigQuery()` DI extension method
+
 ## [1.0.103] - 2026-07-16
 
 ### Fixed
