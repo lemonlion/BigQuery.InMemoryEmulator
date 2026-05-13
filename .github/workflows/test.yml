@@ -13,7 +13,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet test --configuration Release --logger "trx;LogFileName=results.trx"
+      - name: Run unit tests
+        run: dotnet test tests/InMemoryEmulator.BigQuery.Tests.Unit --configuration Release --logger "trx;LogFileName=results.trx"
+        env:
+          BIGQUERY_TEST_TARGET: inmemory
+      - name: Run integration tests
+        run: dotnet test tests/InMemoryEmulator.BigQuery.Tests.Integration --configuration Release --logger "trx;LogFileName=results.trx"
         env:
           BIGQUERY_TEST_TARGET: inmemory
       - uses: actions/upload-artifact@v4
@@ -33,6 +38,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore tests/InMemoryEmulator.BigQuery.Tests.Integration
       - name: Build
         run: dotnet build tests/InMemoryEmulator.BigQuery.Tests.Integration --configuration Release --no-restore
       - name: Start BigQuery emulator
@@ -75,15 +82,16 @@ jobs:
           echo "Shard $SHARD: $(echo "$filter_parts" | tr '|' '\n' | wc -l) classes"
       - name: Run tests
         if: steps.shard-filter.outputs.filter != ''
-        run: |
-          dotnet test tests/InMemoryEmulator.BigQuery.Tests.Integration \
-            --configuration Release --no-build \
-            --filter "(Target!=InMemoryOnly&Target!=CloudOnly&Target!=EmulatorDivergence)&(${{ steps.shard-filter.outputs.filter }})" \
-            --logger "trx;LogFileName=results.trx" \
-            -- RunConfiguration.MaxCpuCount=1
         env:
           BIGQUERY_TEST_TARGET: emulator
           BIGQUERY_EMULATOR_EXTERNAL: "true"
+          SHARD_FILTER: ${{ steps.shard-filter.outputs.filter }}
+        run: |
+          dotnet test tests/InMemoryEmulator.BigQuery.Tests.Integration \
+            --configuration Release --no-build \
+            --filter "(Target!=InMemoryOnly&Target!=CloudOnly&Target!=EmulatorDivergence)&($SHARD_FILTER)" \
+            --logger "trx;LogFileName=results.trx" \
+            -- RunConfiguration.MaxCpuCount=1
       - name: Emulator logs on failure
         if: failure()
         run: docker logs bq-emulator 2>&1 | tail -1000
