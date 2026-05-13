@@ -31,6 +31,9 @@ public static class ServiceCollectionExtensions
 			foreach (var (datasetId, cfg) in options.Datasets)
 				builder.AddDataset(datasetId, cfg);
 
+			if (options.HttpMessageHandlerWrapper is not null)
+				builder.WithHttpMessageHandlerWrapper(options.HttpMessageHandlerWrapper);
+
 			var result = builder.Build();
 			options.OnClientCreated?.Invoke(result);
 			return result.Client;

@@ -13,6 +13,7 @@ public class InMemoryBigQueryBuilder
 	private string _projectId = "test-project";
 	private readonly List<(string DatasetId, Action<InMemoryDatasetBuilder>? Configure)> _datasets = [];
 	private Func<HttpRequestMessage, HttpResponseMessage?>? _faultInjector;
+	private Func<HttpMessageHandler, HttpMessageHandler>? _httpMessageHandlerWrapper;
 
 	/// <summary>Sets the project ID.</summary>
 	public InMemoryBigQueryBuilder WithProjectId(string projectId)
@@ -32,6 +33,17 @@ public class InMemoryBigQueryBuilder
 	public InMemoryBigQueryBuilder WithFaultInjector(Func<HttpRequestMessage, HttpResponseMessage?>? injector)
 	{
 		_faultInjector = injector;
+		return this;
+	}
+
+	/// <summary>
+	/// Sets a function that wraps the <see cref="FakeBigQueryHandler"/> with additional
+	/// <see cref="DelegatingHandler"/> instances before it is passed to the HTTP client factory.
+	/// </summary>
+	public InMemoryBigQueryBuilder WithHttpMessageHandlerWrapper(
+		Func<HttpMessageHandler, HttpMessageHandler> wrapper)
+	{
+		_httpMessageHandlerWrapper = wrapper;
 		return this;
 	}
 
@@ -56,7 +68,8 @@ public class InMemoryBigQueryBuilder
 		if (_faultInjector is not null)
 			handler.FaultInjector = _faultInjector;
 
-		var factory = new FakeBigQueryHttpClientFactory(handler);
+		HttpMessageHandler effectiveHandler = _httpMessageHandlerWrapper?.Invoke(handler) ?? handler;
+		var factory = new FakeBigQueryHttpClientFactory(effectiveHandler);
 
 		var initializer = new BaseClientService.Initializer
 		{

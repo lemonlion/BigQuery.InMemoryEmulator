@@ -21,4 +21,31 @@ public class InMemoryBigQueryOptions
 
 	/// <summary>Callback invoked after the client is created.</summary>
 	public Action<InMemoryBigQueryResult>? OnClientCreated { get; set; }
+
+	/// <summary>
+	/// Optional function that wraps the final <see cref="HttpMessageHandler"/>
+	/// (the <see cref="FakeBigQueryHandler"/>) before it is passed to
+	/// <see cref="FakeBigQueryHttpClientFactory"/>.
+	/// <para>
+	/// Use this to insert a <see cref="DelegatingHandler"/> into the pipeline.
+	/// The input is the handler that serves in-memory responses; the return value
+	/// replaces it as the outermost handler in the HTTP client.
+	/// </para>
+	/// <para>
+	/// When <c>null</c> (the default), the handler is used as-is.
+	/// </para>
+	/// </summary>
+	public Func<HttpMessageHandler, HttpMessageHandler>? HttpMessageHandlerWrapper { get; set; }
+
+	/// <summary>
+	/// Sets <see cref="HttpMessageHandlerWrapper"/> to the specified function.
+	/// The function receives the <see cref="FakeBigQueryHandler"/> and must return
+	/// the handler to use as the outermost handler in the HTTP client.
+	/// </summary>
+	public InMemoryBigQueryOptions WithHttpMessageHandlerWrapper(
+		Func<HttpMessageHandler, HttpMessageHandler> wrapper)
+	{
+		HttpMessageHandlerWrapper = wrapper;
+		return this;
+	}
 }
