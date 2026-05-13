@@ -23,7 +23,7 @@ public class MathFunctionCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.nums` (id INT64, x FLOAT64, y FLOAT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.nums` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.nums` (id, x, y) VALUES
 			(1,3.14159,2.71828),(2,-5.5,3.0),(3,0.0,1.0),(4,100.0,10.0),(5,1.5,-2.5),
 			(6,2.0,8.0),(7,9.0,0.5),(8,16.0,4.0),(9,0.001,1000.0),(10,-3.7,-3.7)", parameters: null);
 	}

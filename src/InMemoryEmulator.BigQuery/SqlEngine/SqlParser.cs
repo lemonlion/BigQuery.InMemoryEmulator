@@ -132,8 +132,9 @@ internal static class SqlParser
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions
 		// Note: WEEK(WEEKDAY) form was already handled at the top of NormalizeSql.
 		// Pattern 1: date part as last argument before ')'
+		// Negative lookahead excludes INSERT column lists: INSERT INTO t (col1, quarter) VALUES/SELECT
 		sql = Regex.Replace(sql,
-			@",\s*\b(NANOSECOND|MICROSECOND|MILLISECOND|SECOND|MINUTE|HOUR|DAY|DAYOFWEEK|DAYOFYEAR|WEEK|ISOWEEK|MONTH|QUARTER|YEAR|ISOYEAR|DATE|DATETIME)\s*\)",
+			@",\s*\b(NANOSECOND|MICROSECOND|MILLISECOND|SECOND|MINUTE|HOUR|DAY|DAYOFWEEK|DAYOFYEAR|WEEK|ISOWEEK|MONTH|QUARTER|YEAR|ISOYEAR|DATE|DATETIME)\s*\)(?!\s*(?:VALUES|SELECT|WITH)\b)",
 			", '$1')", RegexOptions.IgnoreCase);
 		// Pattern 2: date part as 2nd arg in TIMESTAMP_TRUNC/DATETIME_TRUNC with timezone (3-arg form)
 		// e.g. TIMESTAMP_TRUNC(ts, MONTH, 'America/Los_Angeles') → TIMESTAMP_TRUNC(ts, 'MONTH', 'America/Los_Angeles')

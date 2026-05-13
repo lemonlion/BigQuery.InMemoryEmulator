@@ -23,13 +23,13 @@ public class AnalyticalWindowCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.sales` (id INT64, region STRING, month INT64, revenue INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` (id, region, month, revenue) VALUES
 			(1,'East',1,100),(2,'East',2,150),(3,'East',3,120),(4,'East',4,180),(5,'East',5,200),
 			(6,'West',1,80),(7,'West',2,90),(8,'West',3,110),(9,'West',4,95),(10,'West',5,130),
 			(11,'East',6,170),(12,'West',6,140)", parameters: null);
 
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.events` (id INT64, user_id INT64, event_type STRING, seq INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.events` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.events` (id, user_id, event_type, seq) VALUES
 			(1,1,'login',1),(2,1,'view',2),(3,1,'purchase',3),(4,1,'logout',4),
 			(5,2,'login',1),(6,2,'view',2),(7,2,'view',3),(8,2,'purchase',4),
 			(9,3,'login',1),(10,3,'logout',2)", parameters: null);

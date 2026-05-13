@@ -23,7 +23,7 @@ public class OrderByComprehensiveTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, name STRING, val FLOAT64, grp STRING, dt STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, name, val, grp, dt) VALUES
 			(1,'Alice',30,'A','2024-01-15'),(2,'Bob',20,'B','2024-01-10'),
 			(3,'Carol',30,'A','2024-01-20'),(4,'Dave',10,'B','2024-01-05'),
 			(5,'Eve',50,'C','2024-01-25'),(6,'Frank',NULL,'C','2024-01-01'),

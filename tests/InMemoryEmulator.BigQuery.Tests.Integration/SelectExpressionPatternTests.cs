@@ -23,7 +23,7 @@ public class SelectExpressionPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, name STRING, dept STRING, salary INT64, rating FLOAT64, active BOOL)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, name, dept, salary, rating, active) VALUES
 			(1,'Alice','Eng',90000,4.5,true),(2,'Bob','Eng',75000,3.8,false),
 			(3,'Carol','Sales',70000,4.2,true),(4,'Dave','Sales',65000,3.5,true),
 			(5,'Eve','HR',60000,4.0,false),(6,'Frank','HR',58000,3.2,true),

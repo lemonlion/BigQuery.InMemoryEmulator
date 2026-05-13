@@ -23,7 +23,7 @@ public class DateFormatPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.dates` (id INT64, d DATE, ts TIMESTAMP, dt DATETIME)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dates` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dates` (id, d, ts, dt) VALUES
 			(1, '2024-01-15', '2024-01-15 10:30:00 UTC', '2024-01-15 10:30:00'),
 			(2, '2024-06-30', '2024-06-30 23:59:59 UTC', '2024-06-30 23:59:59'),
 			(3, '2024-12-25', '2024-12-25 00:00:00 UTC', '2024-12-25 00:00:00'),

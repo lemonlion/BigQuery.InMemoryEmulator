@@ -145,8 +145,8 @@ public class ParityVerificationTests26 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.txn` (id INT64, acct_id INT64, amount FLOAT64)");
 		await Exec("CREATE TABLE `{ds}.accounts` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.accounts` VALUES (1, 'Checking'), (2, 'Savings')");
-		await Exec("INSERT INTO `{ds}.txn` VALUES (1, 1, 100), (2, 1, -50), (3, 1, 200), (4, 2, 500), (5, 2, -100)");
+		await Exec("INSERT INTO `{ds}.accounts` (id, name) VALUES (1, 'Checking'), (2, 'Savings')");
+		await Exec("INSERT INTO `{ds}.txn` (id, acct_id, amount) VALUES (1, 1, 100), (2, 1, -50), (3, 1, 200), (4, 2, 500), (5, 2, -100)");
 
 		var rows = await Q(@"
 			SELECT a.name, SUM(t.amount) AS balance,

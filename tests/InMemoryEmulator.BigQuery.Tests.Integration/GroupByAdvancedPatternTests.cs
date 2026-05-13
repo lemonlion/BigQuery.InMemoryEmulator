@@ -23,7 +23,7 @@ public class GroupByAdvancedPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, dept STRING, team STRING, role STRING, salary INT64, year INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, dept, team, role, salary, year) VALUES
 			(1,'Eng','Backend','Dev',90000,2023),(2,'Eng','Backend','Lead',110000,2023),
 			(3,'Eng','Frontend','Dev',85000,2023),(4,'Sales','Direct','Rep',65000,2023),
 			(5,'Sales','Direct','Lead',80000,2023),(6,'Sales','Channel','Rep',60000,2023),

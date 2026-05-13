@@ -23,14 +23,14 @@ public class JoinPatternCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emp` (eid INT64, name STRING, did INT64, salary INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (eid, name, did, salary) VALUES
 			(1,'Alice',1,90000),(2,'Bob',1,75000),(3,'Carol',2,70000),
 			(4,'Dave',2,65000),(5,'Eve',3,60000),(6,'Frank',NULL,55000)", parameters: null);
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.dept` (did INT64, dname STRING, budget INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dept` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dept` (did, dname, budget) VALUES
 			(1,'Eng',500000),(2,'Sales',300000),(3,'HR',200000),(4,'Marketing',100000)", parameters: null);
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.proj` (pid INT64, eid INT64, pname STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.proj` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.proj` (pid, eid, pname) VALUES
 			(1,1,'Alpha'),(2,1,'Beta'),(3,2,'Alpha'),(4,3,'Gamma'),(5,5,'Delta')", parameters: null);
 	}
 

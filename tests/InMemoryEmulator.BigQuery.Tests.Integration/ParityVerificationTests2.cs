@@ -108,7 +108,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task StringAgg_WithOrderBy()
 	{
 		await Exec("CREATE TABLE `{ds}.sa1` (grp STRING, val STRING)");
-		await Exec("INSERT INTO `{ds}.sa1` VALUES ('X','c'),('X','a'),('X','b')");
+		await Exec("INSERT INTO `{ds}.sa1` (grp, val) VALUES ('X','c'),('X','a'),('X','b')");
 		var result = await S("SELECT STRING_AGG(val, ',' ORDER BY val ASC) FROM `{ds}.sa1`");
 		Assert.Equal("a,b,c", result);
 	}
@@ -117,7 +117,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task StringAgg_WithDistinct()
 	{
 		await Exec("CREATE TABLE `{ds}.sa2` (val STRING)");
-		await Exec("INSERT INTO `{ds}.sa2` VALUES ('a'),('b'),('a'),('c'),('b')");
+		await Exec("INSERT INTO `{ds}.sa2` (val) VALUES ('a'),('b'),('a'),('c'),('b')");
 		var result = await S("SELECT STRING_AGG(DISTINCT val, ',')  FROM `{ds}.sa2`");
 		// DISTINCT removes duplicates - result should have exactly 3 unique values
 		var parts = result!.Split(',');
@@ -188,7 +188,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task ArrayAgg_OrderBy()
 	{
 		await Exec("CREATE TABLE `{ds}.aa1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.aa1` VALUES (3),(1),(2)");
+		await Exec("INSERT INTO `{ds}.aa1` (val) VALUES (3),(1),(2)");
 		var rows = await Q("SELECT v FROM `{ds}.aa1`, UNNEST(ARRAY(SELECT val FROM `{ds}.aa1` ORDER BY val)) AS v");
 		// Should return values in order: 1, 2, 3 (repeated 3 times since cross join)
 		Assert.True(rows.Count > 0);
@@ -201,7 +201,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task Window_RowsBetween_Preceding()
 	{
 		await Exec("CREATE TABLE `{ds}.wf1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.wf1` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.wf1` (val) VALUES (1),(2),(3),(4),(5)");
 		var rows = await Q("SELECT val, SUM(val) OVER (ORDER BY val ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS running FROM `{ds}.wf1` ORDER BY val");
 		Assert.Equal(5, rows.Count);
 		Assert.Equal("1", rows[0]["running"]?.ToString()); // SUM(1)
@@ -215,7 +215,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task Window_RowsBetween_Following()
 	{
 		await Exec("CREATE TABLE `{ds}.wf2` (val INT64)");
-		await Exec("INSERT INTO `{ds}.wf2` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.wf2` (val) VALUES (1),(2),(3),(4),(5)");
 		var rows = await Q("SELECT val, SUM(val) OVER (ORDER BY val ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) AS s FROM `{ds}.wf2` ORDER BY val");
 		Assert.Equal(5, rows.Count);
 		Assert.Equal("3", rows[0]["s"]?.ToString()); // SUM(1,2)
@@ -356,7 +356,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task CorrelatedSubquery_InSelect()
 	{
 		await Exec("CREATE TABLE `{ds}.cs1` (id INT64, val INT64)");
-		await Exec("INSERT INTO `{ds}.cs1` VALUES (1,10),(1,20),(2,30)");
+		await Exec("INSERT INTO `{ds}.cs1` (id, val) VALUES (1,10),(1,20),(2,30)");
 		var rows = await Q("SELECT DISTINCT id, (SELECT SUM(val) FROM `{ds}.cs1` t2 WHERE t2.id = t1.id) AS total FROM `{ds}.cs1` t1 ORDER BY id");
 		Assert.Equal(2, rows.Count);
 		Assert.Equal("30", rows[0]["total"]?.ToString());
@@ -396,7 +396,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task CrossJoin_Unnest()
 	{
 		await Exec("CREATE TABLE `{ds}.cj1` (id INT64, tags ARRAY<STRING>)");
-		await Exec("INSERT INTO `{ds}.cj1` VALUES (1, ['a','b']),(2, ['c'])");
+		await Exec("INSERT INTO `{ds}.cj1` (id, tags) VALUES (1, ['a','b']),(2, ['c'])");
 		var rows = await Q("SELECT id, tag FROM `{ds}.cj1` CROSS JOIN UNNEST(tags) AS tag ORDER BY id, tag");
 		Assert.Equal(3, rows.Count);
 		Assert.Equal("a", rows[0]["tag"]?.ToString());
@@ -429,7 +429,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task Lag_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.lag1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.lag1` VALUES (10),(20),(30)");
+		await Exec("INSERT INTO `{ds}.lag1` (val) VALUES (10),(20),(30)");
 		var rows = await Q("SELECT val, LAG(val) OVER (ORDER BY val) AS prev FROM `{ds}.lag1` ORDER BY val");
 		Assert.Equal(3, rows.Count);
 		Assert.Null(rows[0]["prev"]);
@@ -441,7 +441,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task Lead_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.lead1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.lead1` VALUES (10),(20),(30)");
+		await Exec("INSERT INTO `{ds}.lead1` (val) VALUES (10),(20),(30)");
 		var rows = await Q("SELECT val, LEAD(val) OVER (ORDER BY val) AS nxt FROM `{ds}.lead1` ORDER BY val");
 		Assert.Equal(3, rows.Count);
 		Assert.Equal("20", rows[0]["nxt"]?.ToString());
@@ -456,7 +456,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task Ntile_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.nt1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.nt1` VALUES (1),(2),(3),(4),(5),(6)");
+		await Exec("INSERT INTO `{ds}.nt1` (val) VALUES (1),(2),(3),(4),(5),(6)");
 		var rows = await Q("SELECT val, NTILE(3) OVER (ORDER BY val) AS bucket FROM `{ds}.nt1` ORDER BY val");
 		Assert.Equal(6, rows.Count);
 		// NTILE(3) over 6 rows: 2 rows each in buckets 1, 2, 3
@@ -475,7 +475,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task FirstValue_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.fv1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.fv1` VALUES (10),(20),(30)");
+		await Exec("INSERT INTO `{ds}.fv1` (val) VALUES (10),(20),(30)");
 		var rows = await Q("SELECT val, FIRST_VALUE(val) OVER (ORDER BY val) AS fv FROM `{ds}.fv1` ORDER BY val");
 		Assert.Equal(3, rows.Count);
 		Assert.Equal("10", rows[0]["fv"]?.ToString());
@@ -487,7 +487,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task LastValue_WithFrameUnbounded()
 	{
 		await Exec("CREATE TABLE `{ds}.lv1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.lv1` VALUES (10),(20),(30)");
+		await Exec("INSERT INTO `{ds}.lv1` (val) VALUES (10),(20),(30)");
 		var rows = await Q("SELECT val, LAST_VALUE(val) OVER (ORDER BY val ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS lv FROM `{ds}.lv1` ORDER BY val");
 		Assert.Equal(3, rows.Count);
 		Assert.Equal("30", rows[0]["lv"]?.ToString());
@@ -569,7 +569,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task DenseRank_WithTies()
 	{
 		await Exec("CREATE TABLE `{ds}.dr1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.dr1` VALUES (10),(20),(20),(30)");
+		await Exec("INSERT INTO `{ds}.dr1` (val) VALUES (10),(20),(20),(30)");
 		var rows = await Q("SELECT val, DENSE_RANK() OVER (ORDER BY val) AS dr FROM `{ds}.dr1` ORDER BY val");
 		Assert.Equal(4, rows.Count);
 		Assert.Equal("1", rows[0]["dr"]?.ToString());
@@ -585,7 +585,7 @@ public class ParityVerificationTests2 : IAsyncLifetime
 	public async Task Rank_WithGaps()
 	{
 		await Exec("CREATE TABLE `{ds}.rk1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.rk1` VALUES (10),(20),(20),(30)");
+		await Exec("INSERT INTO `{ds}.rk1` (val) VALUES (10),(20),(20),(30)");
 		var rows = await Q("SELECT val, RANK() OVER (ORDER BY val) AS rk FROM `{ds}.rk1` ORDER BY val");
 		Assert.Equal(4, rows.Count);
 		Assert.Equal("1", rows[0]["rk"]?.ToString());

@@ -37,7 +37,7 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	[Fact] public async Task Create_BasicTable()
 	{
 		await Exec("CREATE TABLE `{ds}.t1` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.t1` VALUES (1, 'test')");
+		await Exec("INSERT INTO `{ds}.t1` (id, name) VALUES (1, 'test')");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.t1`"));
 	}
 	[Fact] public async Task Create_AllTypes()
@@ -50,21 +50,21 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.t3` (id INT64)");
 		await Exec("CREATE TABLE IF NOT EXISTS `{ds}.t3` (id INT64)"); // no error
-		await Exec("INSERT INTO `{ds}.t3` VALUES (1)");
+		await Exec("INSERT INTO `{ds}.t3` (id) VALUES (1)");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.t3`"));
 	}
 	[Fact] public async Task Create_OrReplace()
 	{
 		await Exec("CREATE TABLE `{ds}.t4` (id INT64, old_col STRING)");
-		await Exec("INSERT INTO `{ds}.t4` VALUES (1, 'test')");
+		await Exec("INSERT INTO `{ds}.t4` (id, new_col) VALUES (1, 'test')");
 		await Exec("CREATE OR REPLACE TABLE `{ds}.t4` (id INT64, new_col STRING)");
-		await Exec("INSERT INTO `{ds}.t4` VALUES (1, 'replaced')");
+		await Exec("INSERT INTO `{ds}.t4` (id, new_col) VALUES (1, 'replaced')");
 		Assert.Equal("replaced", await S("SELECT new_col FROM `{ds}.t4`"));
 	}
 	[Fact] public async Task Create_WithMultipleColumns()
 	{
 		await Exec("CREATE TABLE `{ds}.t5` (a INT64, b INT64, c INT64, d INT64, e INT64)");
-		await Exec("INSERT INTO `{ds}.t5` VALUES (1,2,3,4,5)");
+		await Exec("INSERT INTO `{ds}.t5` (a, b, c, d, e) VALUES (1,2,3,4,5)");
 		Assert.Equal("15", await S("SELECT a+b+c+d+e FROM `{ds}.t5`"));
 	}
 
@@ -72,14 +72,14 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	[Fact] public async Task Create_AsSelect()
 	{
 		await Exec("CREATE TABLE `{ds}.src` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.src` VALUES (1,'A'),(2,'B'),(3,'C')");
+		await Exec("INSERT INTO `{ds}.src` (id, name) VALUES (1,'A'),(2,'B'),(3,'C')");
 		await Exec("CREATE TABLE `{ds}.dst` AS SELECT * FROM `{ds}.src` WHERE id <= 2");
 		Assert.Equal("2", await S("SELECT COUNT(*) FROM `{ds}.dst`"));
 	}
 	[Fact] public async Task Create_AsSelectWithExpr()
 	{
 		await Exec("CREATE TABLE `{ds}.src2` (id INT64, val INT64)");
-		await Exec("INSERT INTO `{ds}.src2` VALUES (1,10),(2,20)");
+		await Exec("INSERT INTO `{ds}.src2` (id, val) VALUES (1,10),(2,20)");
 		await Exec("CREATE TABLE `{ds}.dst2` AS SELECT id, val * 2 AS doubled FROM `{ds}.src2`");
 		Assert.Equal("60", await S("SELECT SUM(doubled) FROM `{ds}.dst2`")); // 10*2 + 20*2 = 60: id=1 doubled=20, id=2 doubled=40 => SUM=60
 	}
@@ -88,7 +88,7 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	[Fact] public async Task Drop_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.drp1` (id INT64)");
-		await Exec("INSERT INTO `{ds}.drp1` VALUES (1)");
+		await Exec("INSERT INTO `{ds}.drp1` (id) VALUES (1)");
 		await Exec("DROP TABLE `{ds}.drp1`");
 		await Assert.ThrowsAnyAsync<Exception>(async () => await S("SELECT COUNT(*) FROM `{ds}.drp1`"));
 	}
@@ -99,10 +99,10 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	[Fact] public async Task Drop_AndRecreate()
 	{
 		await Exec("CREATE TABLE `{ds}.drp2` (id INT64)");
-		await Exec("INSERT INTO `{ds}.drp2` VALUES (1)");
+		await Exec("INSERT INTO `{ds}.drp2` (id, name) VALUES (1)");
 		await Exec("DROP TABLE `{ds}.drp2`");
 		await Exec("CREATE TABLE `{ds}.drp2` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.drp2` VALUES (1, 'new')");
+		await Exec("INSERT INTO `{ds}.drp2` (id, name) VALUES (1, 'new')");
 		Assert.Equal("new", await S("SELECT name FROM `{ds}.drp2`"));
 	}
 
@@ -111,13 +111,13 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.alt1` (id INT64)");
 		await Exec("ALTER TABLE `{ds}.alt1` ADD COLUMN name STRING");
-		await Exec("INSERT INTO `{ds}.alt1` VALUES (1, 'test')");
+		await Exec("INSERT INTO `{ds}.alt1` (id, name) VALUES (1, 'test')");
 		Assert.Equal("test", await S("SELECT name FROM `{ds}.alt1`"));
 	}
 	[Fact] public async Task Alter_DropColumn()
 	{
 		await Exec("CREATE TABLE `{ds}.alt2` (id INT64, name STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.alt2` VALUES (1, 'test', 42)");
+		await Exec("INSERT INTO `{ds}.alt2` (id, name, val) VALUES (1, 'test', 42)");
 		await Exec("ALTER TABLE `{ds}.alt2` DROP COLUMN name");
 		Assert.Equal("42", await S("SELECT val FROM `{ds}.alt2`"));
 	}
@@ -126,7 +126,7 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	[Fact] public async Task Create_View()
 	{
 		await Exec("CREATE TABLE `{ds}.vt1` (id INT64, name STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.vt1` VALUES (1,'A',10),(2,'B',20),(3,'C',30)");
+		await Exec("INSERT INTO `{ds}.vt1` (id, name, val) VALUES (1,'A',10),(2,'B',20),(3,'C',30)");
 		await Exec("CREATE VIEW `{ds}.v1` AS SELECT name, val FROM `{ds}.vt1` WHERE val > 15");
 		var rows = await Q("SELECT * FROM `{ds}.v1` ORDER BY name");
 		Assert.Equal(2, rows.Count);
@@ -134,7 +134,7 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	[Fact] public async Task Create_ViewWithAgg()
 	{
 		await Exec("CREATE TABLE `{ds}.vt2` (id INT64, grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.vt2` VALUES (1,'A',10),(2,'A',20),(3,'B',30)");
+		await Exec("INSERT INTO `{ds}.vt2` (id, grp, val) VALUES (1,'A',10),(2,'A',20),(3,'B',30)");
 		await Exec("CREATE VIEW `{ds}.v2` AS SELECT grp, SUM(val) AS total FROM `{ds}.vt2` GROUP BY grp");
 		var rows = await Q("SELECT * FROM `{ds}.v2` ORDER BY grp");
 		Assert.Equal(2, rows.Count);
@@ -145,7 +145,7 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 	[Fact] public async Task Sequence_CreateInsertQuery()
 	{
 		await Exec("CREATE TABLE `{ds}.seq1` (id INT64, val STRING)");
-		for (int i = 0; i < 5; i++) await Exec($"INSERT INTO `{{ds}}.seq1` VALUES ({i}, 'item_{i}')");
+		for (int i = 0; i < 5; i++) await Exec($"INSERT INTO `{{ds}}.seq1` (id, val) VALUES ({i}, 'item_{i}')");
 		Assert.Equal("5", await S("SELECT COUNT(*) FROM `{ds}.seq1`"));
 	}
 	[Fact] public async Task Sequence_CreateDropCreate()
@@ -153,7 +153,7 @@ public class DdlComprehensiveExtTests : IAsyncLifetime
 		await Exec("CREATE TABLE `{ds}.seq2` (id INT64)");
 		await Exec("DROP TABLE `{ds}.seq2`");
 		await Exec("CREATE TABLE `{ds}.seq2` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.seq2` VALUES (1, 'test')");
+		await Exec("INSERT INTO `{ds}.seq2` (id, name) VALUES (1, 'test')");
 		Assert.Equal("test", await S("SELECT name FROM `{ds}.seq2`"));
 	}
 }

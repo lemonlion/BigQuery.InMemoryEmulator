@@ -23,7 +23,7 @@ public class SelectClauseAdvancedTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, name STRING, val FLOAT64, active BOOL)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, name, val, active) VALUES
 			(1,'Alice',10.5,true),(2,'Bob',20.3,false),(3,'Carol',30.7,true),
 			(4,'Dave',NULL,true),(5,'Eve',50.1,false)", parameters: null);
 	}

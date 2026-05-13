@@ -88,7 +88,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task Unnest_WithOffset_FromTable()
 	{
 		await Exec("CREATE TABLE `{ds}.arr_t` (id INT64, items ARRAY<STRING>)");
-		await Exec("INSERT INTO `{ds}.arr_t` VALUES (1, ['x','y','z'])");
+		await Exec("INSERT INTO `{ds}.arr_t` (id, items) VALUES (1, ['x','y','z'])");
 		var rows = await Q("SELECT id, item, pos FROM `{ds}.arr_t`, UNNEST(items) AS item WITH OFFSET AS pos ORDER BY pos");
 		Assert.Equal(3, rows.Count);
 		Assert.Equal("x", rows[0]["item"]?.ToString());
@@ -105,7 +105,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task InUnnest_LiteralArray()
 	{
 		await Exec("CREATE TABLE `{ds}.inu1` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.inu1` VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie'),(4,'Dave')");
+		await Exec("INSERT INTO `{ds}.inu1` (id, name) VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie'),(4,'Dave')");
 		var rows = await Q("SELECT name FROM `{ds}.inu1` WHERE name IN UNNEST(['Alice', 'Charlie']) ORDER BY name");
 		Assert.Equal(2, rows.Count);
 		Assert.Equal("Alice", rows[0]["name"]?.ToString());
@@ -116,7 +116,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task InUnnest_IntArray()
 	{
 		await Exec("CREATE TABLE `{ds}.inu2` (val INT64)");
-		await Exec("INSERT INTO `{ds}.inu2` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.inu2` (val) VALUES (1),(2),(3),(4),(5)");
 		var rows = await Q("SELECT val FROM `{ds}.inu2` WHERE val IN UNNEST([2, 4]) ORDER BY val");
 		Assert.Equal(2, rows.Count);
 		Assert.Equal("2", rows[0]["val"]?.ToString());
@@ -127,7 +127,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task NotInUnnest_LiteralArray()
 	{
 		await Exec("CREATE TABLE `{ds}.inu3` (val INT64)");
-		await Exec("INSERT INTO `{ds}.inu3` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.inu3` (val) VALUES (1),(2),(3),(4),(5)");
 		var rows = await Q("SELECT val FROM `{ds}.inu3` WHERE val NOT IN UNNEST([2, 4]) ORDER BY val");
 		Assert.Equal(3, rows.Count);
 		Assert.Equal("1", rows[0]["val"]?.ToString());
@@ -139,7 +139,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task InUnnest_WithColumnArray()
 	{
 		await Exec("CREATE TABLE `{ds}.inu4` (id INT64, allowed ARRAY<STRING>)");
-		await Exec("INSERT INTO `{ds}.inu4` VALUES (1, ['read','write']),(2, ['read'])");
+		await Exec("INSERT INTO `{ds}.inu4` (id, allowed) VALUES (1, ['read','write']),(2, ['read'])");
 		var rows = await Q("SELECT id FROM `{ds}.inu4` WHERE 'write' IN UNNEST(allowed)");
 		Assert.Single(rows);
 		Assert.Equal("1", rows[0]["id"]?.ToString());
@@ -160,7 +160,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task ArraySubquery_FromTable()
 	{
 		await Exec("CREATE TABLE `{ds}.asq1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.asq1` VALUES (5),(3),(1),(4),(2)");
+		await Exec("INSERT INTO `{ds}.asq1` (val) VALUES (5),(3),(1),(4),(2)");
 		var v = await S("SELECT ARRAY_TO_STRING(ARRAY(SELECT val FROM `{ds}.asq1` WHERE val > 2 ORDER BY val), ',')");
 		Assert.Equal("3,4,5", v);
 	}
@@ -169,7 +169,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task ArraySubquery_Length()
 	{
 		await Exec("CREATE TABLE `{ds}.asq2` (val INT64)");
-		await Exec("INSERT INTO `{ds}.asq2` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.asq2` (val) VALUES (1),(2),(3),(4),(5)");
 		var v = await S("SELECT ARRAY_LENGTH(ARRAY(SELECT val FROM `{ds}.asq2` WHERE val <= 3))");
 		Assert.Equal("3", v);
 	}
@@ -178,7 +178,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task ArraySubquery_Distinct()
 	{
 		await Exec("CREATE TABLE `{ds}.asq3` (val INT64)");
-		await Exec("INSERT INTO `{ds}.asq3` VALUES (1),(2),(2),(3),(3),(3)");
+		await Exec("INSERT INTO `{ds}.asq3` (val) VALUES (1),(2),(2),(3),(3),(3)");
 		var v = await S("SELECT ARRAY_LENGTH(ARRAY(SELECT DISTINCT val FROM `{ds}.asq3`))");
 		Assert.Equal("3", v);
 	}
@@ -191,7 +191,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task ArrayAgg_Distinct_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.aad1` (grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.aad1` VALUES ('A',1),('A',1),('A',2),('B',3),('B',3)");
+		await Exec("INSERT INTO `{ds}.aad1` (grp, val) VALUES ('A',1),('A',1),('A',2),('B',3),('B',3)");
 		var rows = await Q("SELECT grp, ARRAY_LENGTH(ARRAY_AGG(DISTINCT val)) AS cnt FROM `{ds}.aad1` GROUP BY grp ORDER BY grp");
 		Assert.Equal("2", rows[0]["cnt"]?.ToString()); // A has distinct values 1,2
 		Assert.Equal("1", rows[1]["cnt"]?.ToString()); // B has distinct value 3
@@ -201,7 +201,7 @@ public class UnnestWithOffsetTests : IAsyncLifetime
 	public async Task ArrayAgg_Distinct_Strings()
 	{
 		await Exec("CREATE TABLE `{ds}.aad2` (tag STRING)");
-		await Exec("INSERT INTO `{ds}.aad2` VALUES ('a'),('b'),('a'),('c'),('b')");
+		await Exec("INSERT INTO `{ds}.aad2` (tag) VALUES ('a'),('b'),('a'),('c'),('b')");
 		var v = await S("SELECT ARRAY_LENGTH(ARRAY_AGG(DISTINCT tag)) FROM `{ds}.aad2`");
 		Assert.Equal("3", v);
 	}

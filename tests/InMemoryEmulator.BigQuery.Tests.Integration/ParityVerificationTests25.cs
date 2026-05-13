@@ -68,11 +68,11 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	public async Task Table_CreateInsertSelect()
 	{
 		await Exec("CREATE TABLE `{ds}.employees` (id INT64, name STRING, dept STRING, salary FLOAT64)");
-		await Exec("INSERT INTO `{ds}.employees` VALUES (1, 'Alice', 'Eng', 95000)");
-		await Exec("INSERT INTO `{ds}.employees` VALUES (2, 'Bob', 'Eng', 85000)");
-		await Exec("INSERT INTO `{ds}.employees` VALUES (3, 'Charlie', 'Sales', 70000)");
-		await Exec("INSERT INTO `{ds}.employees` VALUES (4, 'Diana', 'Sales', 80000)");
-		await Exec("INSERT INTO `{ds}.employees` VALUES (5, 'Eve', 'HR', 75000)");
+		await Exec("INSERT INTO `{ds}.employees` (id, name, dept, salary) VALUES (1, 'Alice', 'Eng', 95000)");
+		await Exec("INSERT INTO `{ds}.employees` (id, name, dept, salary) VALUES (2, 'Bob', 'Eng', 85000)");
+		await Exec("INSERT INTO `{ds}.employees` (id, name, dept, salary) VALUES (3, 'Charlie', 'Sales', 70000)");
+		await Exec("INSERT INTO `{ds}.employees` (id, name, dept, salary) VALUES (4, 'Diana', 'Sales', 80000)");
+		await Exec("INSERT INTO `{ds}.employees` (id, name, dept, salary) VALUES (5, 'Eve', 'HR', 75000)");
 
 		var rows = await Q("SELECT name, salary FROM `{ds}.employees` WHERE dept = 'Eng' ORDER BY salary DESC");
 		Assert.Equal(2, rows.Count);
@@ -89,7 +89,7 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	public async Task Table_AggregateByDept()
 	{
 		await Exec("CREATE TABLE `{ds}.staff` (id INT64, name STRING, dept STRING, salary FLOAT64)");
-		await Exec("INSERT INTO `{ds}.staff` VALUES (1, 'Alice', 'Eng', 95000), (2, 'Bob', 'Eng', 85000), (3, 'Charlie', 'Sales', 70000), (4, 'Diana', 'Sales', 80000), (5, 'Eve', 'HR', 75000)");
+		await Exec("INSERT INTO `{ds}.staff` (id, name, dept, salary) VALUES (1, 'Alice', 'Eng', 95000), (2, 'Bob', 'Eng', 85000), (3, 'Charlie', 'Sales', 70000), (4, 'Diana', 'Sales', 80000), (5, 'Eve', 'HR', 75000)");
 
 		var rows = await Q("SELECT dept, COUNT(*) AS cnt, AVG(salary) AS avg_sal FROM `{ds}.staff` GROUP BY dept ORDER BY dept");
 		Assert.Equal(3, rows.Count);
@@ -110,7 +110,7 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	public async Task Table_UpdateWithWhere()
 	{
 		await Exec("CREATE TABLE `{ds}.products` (id INT64, name STRING, price FLOAT64)");
-		await Exec("INSERT INTO `{ds}.products` VALUES (1, 'Widget', 10.0), (2, 'Gadget', 20.0), (3, 'Doohickey', 30.0)");
+		await Exec("INSERT INTO `{ds}.products` (id, name, price) VALUES (1, 'Widget', 10.0), (2, 'Gadget', 20.0), (3, 'Doohickey', 30.0)");
 		await Exec("UPDATE `{ds}.products` SET price = price * 1.1 WHERE price > 15");
 
 		var rows = await Q("SELECT name, price FROM `{ds}.products` ORDER BY id");
@@ -127,7 +127,7 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	public async Task Table_DeleteWithWhere()
 	{
 		await Exec("CREATE TABLE `{ds}.items` (id INT64, name STRING, active BOOL)");
-		await Exec("INSERT INTO `{ds}.items` VALUES (1, 'A', TRUE), (2, 'B', FALSE), (3, 'C', TRUE), (4, 'D', FALSE)");
+		await Exec("INSERT INTO `{ds}.items` (id, name, active) VALUES (1, 'A', TRUE), (2, 'B', FALSE), (3, 'C', TRUE), (4, 'D', FALSE)");
 		await Exec("DELETE FROM `{ds}.items` WHERE active = FALSE");
 
 		var rows = await Q("SELECT name FROM `{ds}.items` ORDER BY name");
@@ -145,8 +145,8 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.orders` (id INT64, customer_id INT64, amount FLOAT64)");
 		await Exec("CREATE TABLE `{ds}.customers` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.customers` VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
-		await Exec("INSERT INTO `{ds}.orders` VALUES (100, 1, 50.0), (101, 1, 75.0), (102, 2, 30.0)");
+		await Exec("INSERT INTO `{ds}.customers` (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
+		await Exec("INSERT INTO `{ds}.orders` (id, customer_id, amount) VALUES (100, 1, 50.0), (101, 1, 75.0), (102, 2, 30.0)");
 
 		var rows = await Q(@"
 			SELECT c.name, SUM(o.amount) AS total 
@@ -168,8 +168,8 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.ordersx` (id INT64, cust_id INT64, amount FLOAT64)");
 		await Exec("CREATE TABLE `{ds}.custs` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.custs` VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
-		await Exec("INSERT INTO `{ds}.ordersx` VALUES (100, 1, 50.0), (101, 2, 30.0)");
+		await Exec("INSERT INTO `{ds}.custs` (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
+		await Exec("INSERT INTO `{ds}.ordersx` (id, cust_id, amount) VALUES (100, 1, 50.0), (101, 2, 30.0)");
 
 		var rows = await Q(@"
 			SELECT c.name, IFNULL(SUM(o.amount), 0) AS total 
@@ -192,7 +192,7 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	public async Task Table_WindowFunctionOverTable()
 	{
 		await Exec("CREATE TABLE `{ds}.sales` (id INT64, region STRING, amount FLOAT64)");
-		await Exec("INSERT INTO `{ds}.sales` VALUES (1, 'East', 100), (2, 'East', 200), (3, 'West', 150), (4, 'West', 250), (5, 'West', 350)");
+		await Exec("INSERT INTO `{ds}.sales` (id, region, amount) VALUES (1, 'East', 100), (2, 'East', 200), (3, 'West', 150), (4, 'West', 250), (5, 'West', 350)");
 
 		var rows = await Q(@"
 			SELECT region, amount, 
@@ -215,7 +215,7 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	public async Task Table_SubqueryFilter()
 	{
 		await Exec("CREATE TABLE `{ds}.catalog` (id INT64, name STRING, category STRING, price FLOAT64)");
-		await Exec("INSERT INTO `{ds}.catalog` VALUES (1, 'A', 'Electronics', 500), (2, 'B', 'Electronics', 1000), (3, 'C', 'Books', 20), (4, 'D', 'Books', 50)");
+		await Exec("INSERT INTO `{ds}.catalog` (id, name, category, price) VALUES (1, 'A', 'Electronics', 500), (2, 'B', 'Electronics', 1000), (3, 'C', 'Books', 20), (4, 'D', 'Books', 50)");
 
 		var rows = await Q(@"
 			SELECT name, price FROM `{ds}.catalog`
@@ -236,7 +236,7 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.source` (id INT64, val STRING)");
 		await Exec("CREATE TABLE `{ds}.target` (id INT64, val STRING)");
-		await Exec("INSERT INTO `{ds}.source` VALUES (1, 'a'), (2, 'b'), (3, 'c')");
+		await Exec("INSERT INTO `{ds}.source` (id, val) VALUES (1, 'a'), (2, 'b'), (3, 'c')");
 		await Exec("INSERT INTO `{ds}.target` SELECT * FROM `{ds}.source` WHERE id > 1");
 
 		var rows = await Q("SELECT val FROM `{ds}.target` ORDER BY id");
@@ -255,7 +255,7 @@ public class ParityVerificationTests25 : IAsyncLifetime
 	public async Task Table_MergeUpsert()
 	{
 		await Exec("CREATE TABLE `{ds}.inventory` (id INT64, name STRING, qty INT64)");
-		await Exec("INSERT INTO `{ds}.inventory` VALUES (1, 'Widget', 10), (2, 'Gadget', 20)");
+		await Exec("INSERT INTO `{ds}.inventory` (id, name, qty) VALUES (1, 'Widget', 10), (2, 'Gadget', 20)");
 		await Exec(@"
 			MERGE `{ds}.inventory` AS t
 			USING (SELECT 2 AS id, 'Gadget' AS name, 25 AS qty UNION ALL SELECT 3, 'Doohickey', 15) AS s

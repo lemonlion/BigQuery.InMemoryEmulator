@@ -23,7 +23,7 @@ public class CteComplexPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emp` (eid INT64, name STRING, dept STRING, salary FLOAT64, mgr_id INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (eid, name, dept, salary, mgr_id) VALUES
 			(1,'Alice','Eng',80000,NULL),(2,'Bob','Eng',75000,1),(3,'Carol','Sales',70000,1),
 			(4,'Dave','Sales',65000,3),(5,'Eve','Eng',90000,1),(6,'Frank','HR',60000,NULL),
 			(7,'Grace','HR',62000,6),(8,'Hank','Eng',72000,2),(9,'Ivy','Sales',68000,3),

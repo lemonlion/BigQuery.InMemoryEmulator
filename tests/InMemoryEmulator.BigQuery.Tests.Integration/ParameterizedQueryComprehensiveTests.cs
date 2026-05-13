@@ -23,7 +23,7 @@ public class ParameterizedQueryComprehensiveTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.items` (id INT64, name STRING, price FLOAT64, category STRING, active BOOL)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.items` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.items` (id, name, price, category, active) VALUES
 			(1,'Apple',1.5,'fruit',true),(2,'Banana',0.75,'fruit',true),
 			(3,'Carrot',2.0,'vegetable',true),(4,'Donut',3.5,'pastry',false),
 			(5,'Egg',4.0,'dairy',true),(6,'Fig',5.5,'fruit',false),

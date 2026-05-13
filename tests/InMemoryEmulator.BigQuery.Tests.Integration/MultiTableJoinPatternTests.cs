@@ -24,22 +24,22 @@ public class MultiTableJoinPatternTests : IAsyncLifetime
 		var c = await _fixture.GetClientAsync();
 		
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.customers` (cid INT64, name STRING, city STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.customers` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.customers` (cid, name, city) VALUES
 			(1,'Alice','NYC'),(2,'Bob','LA'),(3,'Carol','NYC'),(4,'Dave','Chicago'),(5,'Eve','LA')", parameters: null);
 		
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.orders` (oid INT64, cid INT64, product STRING, amount FLOAT64, odate DATE)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.orders` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.orders` (oid, cid, product, amount, odate) VALUES
 			(101,1,'Widget',50.0,'2024-01-10'),(102,1,'Gadget',70.0,'2024-01-15'),
 			(103,2,'Widget',60.0,'2024-02-01'),(104,3,'Doohickey',90.0,'2024-02-10'),
 			(105,3,'Widget',40.0,'2024-03-01'),(106,4,'Gadget',80.0,'2024-03-05'),
 			(107,5,'Widget',55.0,'2024-03-10'),(108,1,'Doohickey',100.0,'2024-04-01')", parameters: null);
 
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.products` (pid INT64, product STRING, category STRING, unit_cost FLOAT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.products` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.products` (pid, product, category, unit_cost) VALUES
 			(1,'Widget','Hardware',10.0),(2,'Gadget','Electronics',20.0),(3,'Doohickey','Hardware',15.0)", parameters: null);
 
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.categories` (category STRING, department STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.categories` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.categories` (category, department) VALUES
 			('Hardware','Engineering'),('Electronics','R&D'),('Software','IT')", parameters: null);
 	}
 

@@ -23,7 +23,7 @@ public class BooleanExpressionPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, active BOOL, name STRING, val INT64, score FLOAT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, active, name, val, score) VALUES
 			(1,true,'Alice',100,9.5),(2,false,'Bob',200,7.0),(3,true,'Carol',150,8.5),
 			(4,NULL,'Dave',NULL,NULL),(5,true,'Eve',300,6.0),(6,false,'Frank',50,4.5),
 			(7,true,'Grace',250,9.0),(8,false,'Hank',175,5.5)", parameters: null);

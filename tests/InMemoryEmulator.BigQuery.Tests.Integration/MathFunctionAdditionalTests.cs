@@ -114,13 +114,13 @@ public class MathFunctionAdditionalTests : IAsyncLifetime
 	[Fact] public async Task Mod_InQuery()
 	{
 		await Exec("CREATE TABLE `{ds}.nums` (id INT64, a INT64, b INT64)");
-		await Exec("INSERT INTO `{ds}.nums` VALUES (1,10,3),(2,20,7),(3,15,5)");
+		await Exec("INSERT INTO `{ds}.nums` (id, a, b) VALUES (1,10,3),(2,20,7),(3,15,5)");
 		Assert.Equal("7", await S("SELECT SUM(MOD(a, b)) FROM `{ds}.nums`")); // 1+6+0
 	}
 	[Fact] public async Task Abs_InWhere()
 	{
 		await Exec("CREATE TABLE `{ds}.vals` (id INT64, x INT64)");
-		await Exec("INSERT INTO `{ds}.vals` VALUES (1,-5),(2,3),(3,-10),(4,7)");
+		await Exec("INSERT INTO `{ds}.vals` (id, x) VALUES (1,-5),(2,3),(3,-10),(4,7)");
 		Assert.Equal("3", await S("SELECT COUNT(*) FROM `{ds}.vals` WHERE ABS(x) > 4"));
 	}
 

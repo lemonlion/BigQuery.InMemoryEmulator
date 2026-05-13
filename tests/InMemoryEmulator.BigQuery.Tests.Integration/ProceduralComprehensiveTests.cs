@@ -203,7 +203,7 @@ public class ProceduralComprehensiveTests : IAsyncLifetime
 	{
 		var v = await Scalar($@"
 			CREATE TABLE `{_datasetId}.ft1` (val INT64);
-			INSERT INTO `{_datasetId}.ft1` VALUES (10), (20), (30);
+			INSERT INTO `{_datasetId}.ft1` (val) VALUES (10), (20), (30);
 			DECLARE total INT64 DEFAULT 0;
 			FOR rec IN (SELECT val FROM `{_datasetId}.ft1`) DO
 				SET total = total + rec.val;
@@ -319,7 +319,7 @@ public class ProceduralComprehensiveTests : IAsyncLifetime
 	{
 		var v = await Scalar($@"
 			CREATE TABLE `{_datasetId}.vt1` (id INT64, val STRING);
-			INSERT INTO `{_datasetId}.vt1` VALUES (1, 'a'), (2, 'b'), (3, 'c');
+			INSERT INTO `{_datasetId}.vt1` (id, val) VALUES (1, 'a'), (2, 'b'), (3, 'c');
 			DECLARE target_id INT64 DEFAULT 2;
 			SELECT val FROM `{_datasetId}.vt1` WHERE id = target_id;
 		");
@@ -332,7 +332,7 @@ public class ProceduralComprehensiveTests : IAsyncLifetime
 			CREATE TABLE `{_datasetId}.vt2` (id INT64, val STRING);
 			DECLARE my_id INT64 DEFAULT 99;
 			DECLARE my_val STRING DEFAULT 'inserted';
-			INSERT INTO `{_datasetId}.vt2` VALUES (my_id, my_val);
+			INSERT INTO `{_datasetId}.vt2` (id, val) VALUES (my_id, my_val);
 			SELECT val FROM `{_datasetId}.vt2` WHERE id = 99;
 		");
 		Assert.Equal("inserted", v);
@@ -343,7 +343,7 @@ public class ProceduralComprehensiveTests : IAsyncLifetime
 	{
 		var v = await Scalar($@"
 			CREATE TABLE `{_datasetId}.rc1` (id INT64);
-			INSERT INTO `{_datasetId}.rc1` VALUES (1), (2), (3);
+			INSERT INTO `{_datasetId}.rc1` (id) VALUES (1), (2), (3);
 			SELECT @@row_count;
 		");
 		Assert.Equal("3", v);

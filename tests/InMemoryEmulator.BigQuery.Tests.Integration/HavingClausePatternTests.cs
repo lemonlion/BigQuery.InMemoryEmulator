@@ -23,7 +23,7 @@ public class HavingClausePatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.sales` (id INT64, rep STRING, region STRING, product STRING, amount FLOAT64, qty INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` (id, rep, region, product, amount, qty) VALUES
 			(1,'Alice','East','Widget',100,5),(2,'Alice','East','Gadget',200,3),
 			(3,'Bob','West','Widget',150,8),(4,'Bob','West','Widget',120,6),
 			(5,'Carol','East','Gadget',180,4),(6,'Carol','East','Doohickey',90,10),

@@ -23,7 +23,7 @@ public class WhereClauseAdvancedPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emp` (id INT64, name STRING, dept STRING, salary INT64, bonus FLOAT64, active BOOL, manager_id INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (id, name, dept, salary, bonus, active, manager_id) VALUES
 			(1,'Alice','Eng',90000,5000.5,true,NULL),
 			(2,'Bob','Eng',75000,3000.0,false,1),
 			(3,'Carol','Sales',70000,4500.25,true,1),

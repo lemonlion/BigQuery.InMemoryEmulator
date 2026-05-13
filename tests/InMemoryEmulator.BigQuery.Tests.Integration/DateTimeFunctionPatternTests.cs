@@ -154,13 +154,13 @@ public class DateTimeFunctionPatternTests : IAsyncLifetime
 	[Fact] public async Task Date_InQuery()
 	{
 		await Exec("CREATE TABLE `{ds}.events` (id INT64, event_date DATE)");
-		await Exec("INSERT INTO `{ds}.events` VALUES (1, DATE '2024-01-15'),(2, DATE '2024-06-20'),(3, DATE '2024-12-25')");
+		await Exec("INSERT INTO `{ds}.events` (id, event_date) VALUES (1, DATE '2024-01-15'),(2, DATE '2024-06-20'),(3, DATE '2024-12-25')");
 		Assert.Equal("2", await S("SELECT COUNT(*) FROM `{ds}.events` WHERE event_date > DATE '2024-03-01'"));
 	}
 	[Fact] public async Task Date_OrderBy()
 	{
 		await Exec("CREATE TABLE `{ds}.ev2` (id INT64, d DATE)");
-		await Exec("INSERT INTO `{ds}.ev2` VALUES (1, DATE '2024-12-25'),(2, DATE '2024-01-15'),(3, DATE '2024-06-20')");
+		await Exec("INSERT INTO `{ds}.ev2` (id, d) VALUES (1, DATE '2024-12-25'),(2, DATE '2024-01-15'),(3, DATE '2024-06-20')");
 		var rows = await Q("SELECT id FROM `{ds}.ev2` ORDER BY d");
 		Assert.Equal("2", rows[0]["id"]?.ToString());
 		Assert.Equal("3", rows[1]["id"]?.ToString());
@@ -169,7 +169,7 @@ public class DateTimeFunctionPatternTests : IAsyncLifetime
 	[Fact] public async Task DateDiff_InQuery()
 	{
 		await Exec("CREATE TABLE `{ds}.ev3` (id INT64, start_date DATE, end_date DATE)");
-		await Exec("INSERT INTO `{ds}.ev3` VALUES (1, DATE '2024-01-01', DATE '2024-01-31'),(2, DATE '2024-06-01', DATE '2024-06-15')");
+		await Exec("INSERT INTO `{ds}.ev3` (id, start_date, end_date) VALUES (1, DATE '2024-01-01', DATE '2024-01-31'),(2, DATE '2024-06-01', DATE '2024-06-15')");
 		var v = await S("SELECT SUM(DATE_DIFF(end_date, start_date, DAY)) FROM `{ds}.ev3`");
 		Assert.Equal("44", v); // 30 + 14
 	}

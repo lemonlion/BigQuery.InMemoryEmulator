@@ -23,7 +23,7 @@ public class JsonFunctionCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.docs` (id INT64, data STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.docs` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.docs` (id, data) VALUES
 			(1, '{{""name"":""Alice"",""age"":30,""city"":""NYC""}}'),
 			(2, '{{""name"":""Bob"",""age"":25,""tags"":[""dev"",""lead""]}}'),
 			(3, '{{""name"":""Carol"",""nested"":{{""x"":1,""y"":2}}}}'),

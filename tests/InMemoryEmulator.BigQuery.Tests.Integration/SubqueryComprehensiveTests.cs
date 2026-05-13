@@ -24,11 +24,11 @@ public class SubqueryComprehensiveTests : IAsyncLifetime
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.orders` (id INT64, cust_id INT64, amount FLOAT64, status STRING)", parameters: null);
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.cust` (id INT64, name STRING, tier STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.orders` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.orders` (id, cust_id, amount, status) VALUES
 			(1,1,100,'completed'),(2,1,200,'completed'),(3,2,150,'pending'),
 			(4,2,300,'completed'),(5,3,50,'cancelled'),(6,3,250,'completed'),
 			(7,4,175,'pending'),(8,1,80,'cancelled')", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.cust` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.cust` (id, name, tier) VALUES
 			(1,'Alice','gold'),(2,'Bob','silver'),(3,'Carol','gold'),
 			(4,'Dave','bronze'),(5,'Eve','silver')", parameters: null);
 	}

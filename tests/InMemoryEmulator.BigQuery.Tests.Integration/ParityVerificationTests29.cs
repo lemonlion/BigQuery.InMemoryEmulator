@@ -291,8 +291,8 @@ public class ParityVerificationTests29 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.t1` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.t2` (id INT64, t1_id INT64)");
-		await Exec("INSERT INTO `{ds}.t1` VALUES (1, 'A'), (2, 'B'), (3, 'C')");
-		await Exec("INSERT INTO `{ds}.t2` VALUES (1, 1), (2, 2)");
+		await Exec("INSERT INTO `{ds}.t1` (id, name) VALUES (1, 'A'), (2, 'B'), (3, 'C')");
+		await Exec("INSERT INTO `{ds}.t2` (id, t1_id) VALUES (1, 1), (2, 2)");
 
 		var rows = await Q(@"
 			SELECT t.name FROM `{ds}.t1` t
@@ -350,7 +350,7 @@ public class ParityVerificationTests29 : IAsyncLifetime
 	[Fact] public async Task MultiTable_AggregateJoin()
 	{
 		await Exec("CREATE TABLE `{ds}.sales` (id INT64, product STRING, amount FLOAT64)");
-		await Exec("INSERT INTO `{ds}.sales` VALUES (1,'Widget',100), (2,'Widget',150), (3,'Gadget',200), (4,'Gadget',50)");
+		await Exec("INSERT INTO `{ds}.sales` (id, product, amount) VALUES (1,'Widget',100), (2,'Widget',150), (3,'Gadget',200), (4,'Gadget',50)");
 
 		var rows = await Q(@"
 			WITH product_totals AS (

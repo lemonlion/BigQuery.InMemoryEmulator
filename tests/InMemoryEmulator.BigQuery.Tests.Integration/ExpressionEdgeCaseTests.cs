@@ -23,7 +23,7 @@ public class ExpressionEdgeCaseTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.nums` (id INT64, i INT64, f FLOAT64, s STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.nums` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.nums` (id, i, f, s) VALUES
 			(1,10,1.5,'hello'),(2,0,0.0,'world'),(3,-5,-2.5,'foo'),
 			(4,100,99.99,'bar'),(5,NULL,NULL,NULL),(6,1,0.001,'baz')", parameters: null);
 	}

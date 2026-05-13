@@ -154,7 +154,7 @@ public class ParityVerificationTests31 : IAsyncLifetime
 	[Fact] public async Task Update_ComputedExpression()
 	{
 		await Exec("CREATE TABLE `{ds}.items` (id INT64, price FLOAT64, qty INT64)");
-		await Exec("INSERT INTO `{ds}.items` VALUES (1, 10.0, 5), (2, 20.0, 3), (3, 5.0, 10)");
+		await Exec("INSERT INTO `{ds}.items` (id, price, qty) VALUES (1, 10.0, 5), (2, 20.0, 3), (3, 5.0, 10)");
 		await Exec("UPDATE `{ds}.items` SET price = price * 1.1 WHERE qty >= 5");
 
 		var rows = await Q("SELECT id, price FROM `{ds}.items` ORDER BY id");
@@ -170,7 +170,7 @@ public class ParityVerificationTests31 : IAsyncLifetime
 	[Fact] public async Task Delete_ComplexWhere()
 	{
 		await Exec("CREATE TABLE `{ds}.logs` (id INT64, level STRING, msg STRING)");
-		await Exec(@"INSERT INTO `{ds}.logs` VALUES 
+		await Exec(@"INSERT INTO `{ds}.logs` (id, level, msg) VALUES 
 			(1, 'INFO', 'start'), (2, 'ERROR', 'fail'), (3, 'WARN', 'slow'),
 			(4, 'ERROR', 'timeout'), (5, 'INFO', 'done')");
 		await Exec("DELETE FROM `{ds}.logs` WHERE level = 'ERROR' OR level = 'WARN'");

@@ -23,7 +23,7 @@ public class LikePatternMatchingTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.words` (id INT64, word STRING, category STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.words` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.words` (id, word, category) VALUES
 			(1,'apple','fruit'),(2,'banana','fruit'),(3,'cherry','fruit'),
 			(4,'avocado','fruit'),(5,'artichoke','vegetable'),(6,'asparagus','vegetable'),
 			(7,'blueberry','fruit'),(8,'broccoli','vegetable'),(9,'beetroot','vegetable'),

@@ -23,7 +23,7 @@ public class RegexFunctionPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emails` (id INT64, email STRING, note STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emails` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emails` (id, email, note) VALUES
 			(1,'alice@example.com','Phone: 123-456-7890'),
 			(2,'bob.smith@test.org','Phone: 987-654-3210'),
 			(3,'carol_99@domain.co.uk','No phone'),

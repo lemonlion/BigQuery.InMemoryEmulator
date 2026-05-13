@@ -64,7 +64,7 @@ public class ParityVerificationTests28 : IAsyncLifetime
 	[Fact] public async Task SelfJoin_EmployeeManager()
 	{
 		await Exec("CREATE TABLE `{ds}.emp` (id INT64, name STRING, mgr_id INT64)");
-		await Exec("INSERT INTO `{ds}.emp` VALUES (1, 'Alice', NULL), (2, 'Bob', 1), (3, 'Carol', 1), (4, 'Dave', 2)");
+		await Exec("INSERT INTO `{ds}.emp` (id, name, mgr_id) VALUES (1, 'Alice', NULL), (2, 'Bob', 1), (3, 'Carol', 1), (4, 'Dave', 2)");
 
 		var rows = await Q(@"
 			SELECT e.name AS employee, m.name AS manager
@@ -88,9 +88,9 @@ public class ParityVerificationTests28 : IAsyncLifetime
 		await Exec("CREATE TABLE `{ds}.orders` (id INT64, cust_id INT64, prod_id INT64, qty INT64)");
 		await Exec("CREATE TABLE `{ds}.customers` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.products` (id INT64, name STRING, price FLOAT64)");
-		await Exec("INSERT INTO `{ds}.customers` VALUES (1, 'Alice'), (2, 'Bob')");
-		await Exec("INSERT INTO `{ds}.products` VALUES (10, 'Widget', 5.0), (20, 'Gadget', 10.0)");
-		await Exec("INSERT INTO `{ds}.orders` VALUES (1, 1, 10, 3), (2, 1, 20, 1), (3, 2, 10, 5)");
+		await Exec("INSERT INTO `{ds}.customers` (id, name) VALUES (1, 'Alice'), (2, 'Bob')");
+		await Exec("INSERT INTO `{ds}.products` (id, name, price) VALUES (10, 'Widget', 5.0), (20, 'Gadget', 10.0)");
+		await Exec("INSERT INTO `{ds}.orders` (id, cust_id, prod_id, qty) VALUES (1, 1, 10, 3), (2, 1, 20, 1), (3, 2, 10, 5)");
 
 		var rows = await Q(@"
 			SELECT c.name AS customer, p.name AS product, o.qty * p.price AS total
@@ -118,8 +118,8 @@ public class ParityVerificationTests28 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.dept` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.staff` (id INT64, dept_id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.dept` VALUES (1, 'Engineering'), (2, 'Marketing'), (3, 'Empty')");
-		await Exec("INSERT INTO `{ds}.staff` VALUES (1, 1, 'Alice'), (2, 1, 'Bob'), (3, 2, 'Carol')");
+		await Exec("INSERT INTO `{ds}.dept` (id, name) VALUES (1, 'Engineering'), (2, 'Marketing'), (3, 'Empty')");
+		await Exec("INSERT INTO `{ds}.staff` (id, dept_id, name) VALUES (1, 1, 'Alice'), (2, 1, 'Bob'), (3, 2, 'Carol')");
 
 		var rows = await Q(@"
 			SELECT d.name

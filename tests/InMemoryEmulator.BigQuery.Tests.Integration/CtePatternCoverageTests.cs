@@ -23,7 +23,7 @@ public class CtePatternCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emp` (eid INT64, name STRING, dept STRING, salary INT64, mgr_id INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (eid, name, dept, salary, mgr_id) VALUES
 			(1,'Alice','Eng',90000,NULL),(2,'Bob','Eng',75000,1),(3,'Carol','Sales',70000,1),
 			(4,'Dave','Sales',65000,3),(5,'Eve','HR',60000,1),(6,'Frank','HR',58000,5),
 			(7,'Grace','Eng',85000,2),(8,'Hank','Sales',72000,3)", parameters: null);

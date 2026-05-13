@@ -26,14 +26,14 @@ public class JoinMultiPatternTests : IAsyncLifetime
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.dept` (id INT64, name STRING, city STRING, budget FLOAT64)", parameters: null);
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.proj` (id INT64, title STRING, lead_id INT64, dept_id INT64)", parameters: null);
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.assign` (emp_id INT64, proj_id INT64, role STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (id, name, dept_id, salary, mgr_id) VALUES
 			(1,'Alice',1,90000,NULL),(2,'Bob',1,80000,1),(3,'Carol',2,75000,1),
 			(4,'Dave',2,70000,3),(5,'Eve',3,85000,NULL),(6,'Frank',NULL,60000,1)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dept` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dept` (id, name, city, budget) VALUES
 			(1,'Engineering','NYC',500000),(2,'Sales','LA',300000),(3,'HR','SF',200000),(4,'Legal','CHI',150000)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.proj` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.proj` (id, title, lead_id, dept_id) VALUES
 			(1,'Alpha',1,1),(2,'Beta',2,1),(3,'Gamma',3,2),(4,'Delta',NULL,4)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.assign` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.assign` (emp_id, proj_id, role) VALUES
 			(1,1,'lead'),(1,2,'member'),(2,1,'member'),(2,2,'lead'),
 			(3,3,'lead'),(4,3,'member'),(5,1,'member')", parameters: null);
 	}

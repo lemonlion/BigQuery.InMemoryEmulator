@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.103] - 2026-07-16
+
+### Fixed
+- NormalizeSql date-part regex no longer incorrectly converts column names like `quarter`, `day`, `month`, `year` to string literals in INSERT column lists
+- Added negative lookahead `(?!\s*(?:VALUES|SELECT|WITH)\b)` to Pattern 1 of the bare-date-part rewrite so that `INSERT INTO t (col1, quarter) VALUES (...)` is preserved as identifiers
+
+### Changed
+- INSERT INTO statements across 70 test files now include explicit column lists for Go emulator compatibility
+
 ## [1.0.6] - 2026-07-03
 
 ### Added

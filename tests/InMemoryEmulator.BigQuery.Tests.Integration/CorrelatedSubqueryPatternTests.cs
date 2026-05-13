@@ -23,15 +23,15 @@ public class CorrelatedSubqueryPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emp` (eid INT64, name STRING, dept STRING, salary FLOAT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (eid, name, dept, salary) VALUES
 			(1,'Alice','Eng',90000),(2,'Bob','Eng',75000),(3,'Carol','Sales',70000),
 			(4,'Dave','Sales',65000),(5,'Eve','HR',60000),(6,'Frank','HR',58000),
 			(7,'Grace','Eng',85000),(8,'Hank','Sales',72000)", parameters: null);
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.dept` (dname STRING, budget FLOAT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dept` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dept` (dname, budget) VALUES
 			('Eng',500000),('Sales',300000),('HR',200000),('Marketing',100000)", parameters: null);
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.projects` (pid INT64, eid INT64, pname STRING, hours INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.projects` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.projects` (pid, eid, pname, hours) VALUES
 			(1,1,'Alpha',40),(2,1,'Beta',20),(3,2,'Alpha',30),(4,3,'Gamma',50),
 			(5,4,'Gamma',35),(6,7,'Beta',45),(7,7,'Alpha',15),(8,5,'Delta',40)", parameters: null);
 	}

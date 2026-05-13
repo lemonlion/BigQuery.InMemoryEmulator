@@ -23,7 +23,7 @@ public class AggregateWindowCombinationTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.sales` (id INT64, region STRING, product STRING, amount FLOAT64, qty INT64, sale_date DATE)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` (id, region, product, amount, qty, sale_date) VALUES
 			(1,'East','Widget',100.0,10,'2024-01-15'),
 			(2,'East','Gadget',200.0,5,'2024-01-20'),
 			(3,'West','Widget',150.0,8,'2024-02-10'),

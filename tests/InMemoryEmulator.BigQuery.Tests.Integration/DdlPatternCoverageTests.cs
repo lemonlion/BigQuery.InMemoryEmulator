@@ -37,20 +37,20 @@ public class DdlPatternCoverageTests : IAsyncLifetime
 	[Fact] public async Task Create_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.ct1` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.ct1` VALUES (1, 'test')");
+		await Exec("INSERT INTO `{ds}.ct1` (id, name) VALUES (1, 'test')");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.ct1`"));
 	}
 	[Fact] public async Task Create_WithTypes()
 	{
 		await Exec("CREATE TABLE `{ds}.ct2` (a INT64, b FLOAT64, c STRING, d BOOL, e DATE, f TIMESTAMP)");
-		await Exec("INSERT INTO `{ds}.ct2` VALUES (1, 3.14, 'hello', true, DATE '2024-01-01', TIMESTAMP '2024-01-01 00:00:00')");
+		await Exec("INSERT INTO `{ds}.ct2` (a, b, c, d, e, f) VALUES (1, 3.14, 'hello', true, DATE '2024-01-01', TIMESTAMP '2024-01-01 00:00:00')");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.ct2`"));
 	}
 	[Fact] public async Task Create_IfNotExists()
 	{
 		await Exec("CREATE TABLE `{ds}.ct3` (id INT64)");
 		await Exec("CREATE TABLE IF NOT EXISTS `{ds}.ct3` (id INT64)"); // Should not error
-		await Exec("INSERT INTO `{ds}.ct3` VALUES (1)");
+		await Exec("INSERT INTO `{ds}.ct3` (id) VALUES (1)");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.ct3`"));
 	}
 
@@ -58,7 +58,7 @@ public class DdlPatternCoverageTests : IAsyncLifetime
 	[Fact] public async Task CreateOrReplace()
 	{
 		await Exec("CREATE TABLE `{ds}.ct4` (id INT64)");
-		await Exec("INSERT INTO `{ds}.ct4` VALUES (1)");
+		await Exec("INSERT INTO `{ds}.ct4` (id, name) VALUES (1)");
 		await Exec("CREATE OR REPLACE TABLE `{ds}.ct4` (id INT64, name STRING)");
 		Assert.Equal("0", await S("SELECT COUNT(*) FROM `{ds}.ct4`")); // Data cleared
 	}
@@ -67,14 +67,14 @@ public class DdlPatternCoverageTests : IAsyncLifetime
 	[Fact] public async Task Create_AsSelect()
 	{
 		await Exec("CREATE TABLE `{ds}.src5` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.src5` VALUES (1,'a'),(2,'b'),(3,'c')");
+		await Exec("INSERT INTO `{ds}.src5` (id, name) VALUES (1,'a'),(2,'b'),(3,'c')");
 		await Exec("CREATE TABLE `{ds}.ct5` AS SELECT * FROM `{ds}.src5` WHERE id > 1");
 		Assert.Equal("2", await S("SELECT COUNT(*) FROM `{ds}.ct5`"));
 	}
 	[Fact] public async Task Create_AsSelectWithExpr()
 	{
 		await Exec("CREATE TABLE `{ds}.src6` (id INT64, val INT64)");
-		await Exec("INSERT INTO `{ds}.src6` VALUES (1,10),(2,20),(3,30)");
+		await Exec("INSERT INTO `{ds}.src6` (id, val) VALUES (1,10),(2,20),(3,30)");
 		await Exec("CREATE TABLE `{ds}.ct6` AS SELECT id, val * 2 AS doubled FROM `{ds}.src6`");
 		Assert.Equal("120", await S("SELECT SUM(doubled) FROM `{ds}.ct6`")); // 20+40+60
 	}
@@ -96,13 +96,13 @@ public class DdlPatternCoverageTests : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.at1` (id INT64)");
 		await Exec("ALTER TABLE `{ds}.at1` ADD COLUMN name STRING");
-		await Exec("INSERT INTO `{ds}.at1` VALUES (1, 'test')");
+		await Exec("INSERT INTO `{ds}.at1` (id, name) VALUES (1, 'test')");
 		Assert.Equal("test", await S("SELECT name FROM `{ds}.at1` WHERE id = 1"));
 	}
 	[Fact] public async Task Alter_DropColumn()
 	{
 		await Exec("CREATE TABLE `{ds}.at2` (id INT64, name STRING, extra STRING)");
-		await Exec("INSERT INTO `{ds}.at2` VALUES (1, 'test', 'drop_me')");
+		await Exec("INSERT INTO `{ds}.at2` (id, name, extra) VALUES (1, 'test', 'drop_me')");
 		await Exec("ALTER TABLE `{ds}.at2` DROP COLUMN extra");
 		var rows = await Q("SELECT * FROM `{ds}.at2`");
 		Assert.Single(rows);
@@ -112,7 +112,7 @@ public class DdlPatternCoverageTests : IAsyncLifetime
 	[Fact] public async Task Ddl_Sequence()
 	{
 		await Exec("CREATE TABLE `{ds}.seq1` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.seq1` VALUES (1,'a'),(2,'b')");
+		await Exec("INSERT INTO `{ds}.seq1` (id, name) VALUES (1,'a'),(2,'b')");
 		await Exec("ALTER TABLE `{ds}.seq1` ADD COLUMN val INT64");
 		await Exec("INSERT INTO `{ds}.seq1` (id, name, val) VALUES (3, 'c', 100)");
 		Assert.Equal("3", await S("SELECT COUNT(*) FROM `{ds}.seq1`"));
@@ -122,7 +122,7 @@ public class DdlPatternCoverageTests : IAsyncLifetime
 	[Fact] public async Task Create_WithArray()
 	{
 		await Exec("CREATE TABLE `{ds}.arr1` (id INT64, tags ARRAY<STRING>)");
-		await Exec("INSERT INTO `{ds}.arr1` VALUES (1, ['a','b','c'])");
+		await Exec("INSERT INTO `{ds}.arr1` (id, tags) VALUES (1, ['a','b','c'])");
 		Assert.Equal("3", await S("SELECT ARRAY_LENGTH(tags) FROM `{ds}.arr1`"));
 	}
 
@@ -130,7 +130,7 @@ public class DdlPatternCoverageTests : IAsyncLifetime
 	[Fact] public async Task Create_WithStruct()
 	{
 		await Exec("CREATE TABLE `{ds}.st1` (id INT64, info STRUCT<name STRING, age INT64>)");
-		await Exec("INSERT INTO `{ds}.st1` VALUES (1, STRUCT('Alice', 30))");
+		await Exec("INSERT INTO `{ds}.st1` (id, info) VALUES (1, STRUCT('Alice', 30))");
 		Assert.Equal("1", await S("SELECT COUNT(*) FROM `{ds}.st1`"));
 	}
 
@@ -138,7 +138,7 @@ public class DdlPatternCoverageTests : IAsyncLifetime
 	[Fact] public async Task Truncate_Table()
 	{
 		await Exec("CREATE TABLE `{ds}.tr1` (id INT64)");
-		await Exec("INSERT INTO `{ds}.tr1` VALUES (1),(2),(3)");
+		await Exec("INSERT INTO `{ds}.tr1` (id) VALUES (1),(2),(3)");
 		await Exec("TRUNCATE TABLE `{ds}.tr1`");
 		Assert.Equal("0", await S("SELECT COUNT(*) FROM `{ds}.tr1`"));
 	}

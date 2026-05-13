@@ -23,7 +23,7 @@ public class GroupByComprehensiveTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.sales` (id INT64, product STRING, category STRING, region STRING, amount FLOAT64, qty INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` (id, product, category, region, amount, qty) VALUES
 			(1,'Widget','A','East',100,10),(2,'Widget','A','West',150,15),
 			(3,'Gadget','A','East',200,8),(4,'Gadget','A','West',250,12),
 			(5,'Doohickey','B','East',50,20),(6,'Doohickey','B','West',75,25),

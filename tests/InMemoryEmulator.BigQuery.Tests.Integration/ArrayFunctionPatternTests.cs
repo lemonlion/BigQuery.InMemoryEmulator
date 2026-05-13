@@ -96,7 +96,7 @@ public class ArrayFunctionPatternTests : IAsyncLifetime
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#in_operators
 		await Exec("CREATE TABLE `{ds}.ut` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.ut` VALUES (1,'a'),(2,'b'),(3,'c')");
+		await Exec("INSERT INTO `{ds}.ut` (id, name) VALUES (1,'a'),(2,'b'),(3,'c')");
 		Assert.Equal("2", await S("SELECT COUNT(*) FROM `{ds}.ut` WHERE name IN UNNEST(['a','c'])"));
 	}
 
@@ -104,7 +104,7 @@ public class ArrayFunctionPatternTests : IAsyncLifetime
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#array
 		await Exec("CREATE TABLE `{ds}.as1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.as1` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.as1` (val) VALUES (1),(2),(3),(4),(5)");
 		var v = await S("SELECT ARRAY_LENGTH(ARRAY(SELECT val FROM `{ds}.as1` WHERE val > 2))");
 		Assert.Equal("3", v);
 	}
@@ -113,7 +113,7 @@ public class ArrayFunctionPatternTests : IAsyncLifetime
 	[Fact] public async Task Array_InTable()
 	{
 		await Exec("CREATE TABLE `{ds}.at` (id INT64, tags ARRAY<STRING>)");
-		await Exec("INSERT INTO `{ds}.at` VALUES (1, ['a','b','c']),(2, ['d','e'])");
+		await Exec("INSERT INTO `{ds}.at` (id, tags) VALUES (1, ['a','b','c']),(2, ['d','e'])");
 		var rows = await Q("SELECT id, ARRAY_LENGTH(tags) AS cnt FROM `{ds}.at` ORDER BY id");
 		Assert.Equal("3", rows[0]["cnt"]?.ToString());
 		Assert.Equal("2", rows[1]["cnt"]?.ToString());
@@ -121,7 +121,7 @@ public class ArrayFunctionPatternTests : IAsyncLifetime
 	[Fact] public async Task Array_Unnest_Join()
 	{
 		await Exec("CREATE TABLE `{ds}.aj` (id INT64, items ARRAY<STRING>)");
-		await Exec("INSERT INTO `{ds}.aj` VALUES (1, ['x','y']),(2, ['z'])");
+		await Exec("INSERT INTO `{ds}.aj` (id, items) VALUES (1, ['x','y']),(2, ['z'])");
 		var rows = await Q("SELECT id, item FROM `{ds}.aj`, UNNEST(items) item ORDER BY id, item");
 		Assert.Equal(3, rows.Count);
 	}
@@ -130,7 +130,7 @@ public class ArrayFunctionPatternTests : IAsyncLifetime
 	[Fact] public async Task ArrayAgg_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.aa` (grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.aa` VALUES ('A',1),('A',2),('B',3),('B',4),('B',5)");
+		await Exec("INSERT INTO `{ds}.aa` (grp, val) VALUES ('A',1),('A',2),('B',3),('B',4),('B',5)");
 		var rows = await Q("SELECT grp, ARRAY_LENGTH(ARRAY_AGG(val)) AS cnt FROM `{ds}.aa` GROUP BY grp ORDER BY grp");
 		Assert.Equal("2", rows[0]["cnt"]?.ToString());
 		Assert.Equal("3", rows[1]["cnt"]?.ToString());
@@ -141,7 +141,7 @@ public class ArrayFunctionPatternTests : IAsyncLifetime
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions#array
 		await Exec("CREATE TABLE `{ds}.ad` (val INT64)");
-		await Exec("INSERT INTO `{ds}.ad` VALUES (1),(2),(2),(3),(3),(3)");
+		await Exec("INSERT INTO `{ds}.ad` (val) VALUES (1),(2),(2),(3),(3),(3)");
 		var v = await S("SELECT ARRAY_LENGTH(ARRAY(SELECT DISTINCT val FROM `{ds}.ad`))");
 		Assert.Equal("3", v);
 	}

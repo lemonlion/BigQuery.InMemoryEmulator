@@ -82,7 +82,7 @@ public class ParityVerificationTests5 : IAsyncLifetime
 	public async Task Window_PartitionBy_OrderBy()
 	{
 		await Exec("CREATE TABLE `{ds}.wpo` (grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.wpo` VALUES ('A',10),('A',20),('A',30),('B',5),('B',15)");
+		await Exec("INSERT INTO `{ds}.wpo` (grp, val) VALUES ('A',10),('A',20),('A',30),('B',5),('B',15)");
 		var rows = await Q(@"
 			SELECT grp, val, RANK() OVER(PARTITION BY grp ORDER BY val) AS rnk
 			FROM `{ds}.wpo` ORDER BY grp, val");
@@ -206,7 +206,7 @@ public class ParityVerificationTests5 : IAsyncLifetime
 	public async Task Subquery_Correlated_InWhere()
 	{
 		await Exec("CREATE TABLE `{ds}.emp` (id INT64, dept STRING, salary INT64)");
-		await Exec("INSERT INTO `{ds}.emp` VALUES (1,'eng',100),(2,'eng',120),(3,'sales',80),(4,'sales',90)");
+		await Exec("INSERT INTO `{ds}.emp` (id, dept, salary) VALUES (1,'eng',100),(2,'eng',120),(3,'sales',80),(4,'sales',90)");
 		var rows = await Q(@"
 			SELECT id, salary FROM `{ds}.emp` e
 			WHERE salary = (SELECT MAX(salary) FROM `{ds}.emp` WHERE dept = e.dept)
@@ -221,8 +221,8 @@ public class ParityVerificationTests5 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.orders` (id INT64, cust_id INT64)");
 		await Exec("CREATE TABLE `{ds}.customers` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.customers` VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')");
-		await Exec("INSERT INTO `{ds}.orders` VALUES (100,1),(101,1),(102,3)");
+		await Exec("INSERT INTO `{ds}.customers` (id, name) VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')");
+		await Exec("INSERT INTO `{ds}.orders` (id, cust_id) VALUES (100,1),(101,1),(102,3)");
 		var rows = await Q(@"
 			SELECT name FROM `{ds}.customers` c
 			WHERE EXISTS (SELECT 1 FROM `{ds}.orders` o WHERE o.cust_id = c.id)
@@ -289,9 +289,9 @@ public class ParityVerificationTests5 : IAsyncLifetime
 		await Exec("CREATE TABLE `{ds}.j1` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.j2` (id INT64, dept_id INT64)");
 		await Exec("CREATE TABLE `{ds}.j3` (id INT64, dept_name STRING)");
-		await Exec("INSERT INTO `{ds}.j1` VALUES (1,'Alice'),(2,'Bob')");
-		await Exec("INSERT INTO `{ds}.j2` VALUES (1,10),(2,20)");
-		await Exec("INSERT INTO `{ds}.j3` VALUES (10,'Eng'),(20,'Sales')");
+		await Exec("INSERT INTO `{ds}.j1` (id, name) VALUES (1,'Alice'),(2,'Bob')");
+		await Exec("INSERT INTO `{ds}.j2` (id, dept_id) VALUES (1,10),(2,20)");
+		await Exec("INSERT INTO `{ds}.j3` (id, dept_name) VALUES (10,'Eng'),(20,'Sales')");
 		var rows = await Q(@"
 			SELECT j1.name, j3.dept_name
 			FROM `{ds}.j1` j1
@@ -308,8 +308,8 @@ public class ParityVerificationTests5 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.lj1` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.lj2` (user_id INT64, amount INT64)");
-		await Exec("INSERT INTO `{ds}.lj1` VALUES (1,'Alice'),(2,'Bob')");
-		await Exec("INSERT INTO `{ds}.lj2` VALUES (1,100),(1,200)");
+		await Exec("INSERT INTO `{ds}.lj1` (id, name) VALUES (1,'Alice'),(2,'Bob')");
+		await Exec("INSERT INTO `{ds}.lj2` (user_id, amount) VALUES (1,100),(1,200)");
 		var rows = await Q(@"
 			SELECT lj1.name, COALESCE(SUM(lj2.amount), 0) AS total
 			FROM `{ds}.lj1` lj1
@@ -365,7 +365,7 @@ public class ParityVerificationTests5 : IAsyncLifetime
 	public async Task GroupBy_Having_Count()
 	{
 		await Exec("CREATE TABLE `{ds}.ghc` (category STRING, item STRING)");
-		await Exec("INSERT INTO `{ds}.ghc` VALUES ('A','x'),('A','y'),('A','z'),('B','p'),('B','q')");
+		await Exec("INSERT INTO `{ds}.ghc` (category, item) VALUES ('A','x'),('A','y'),('A','z'),('B','p'),('B','q')");
 		var rows = await Q("SELECT category, COUNT(*) AS cnt FROM `{ds}.ghc` GROUP BY category HAVING COUNT(*) >= 3");
 		Assert.Single(rows);
 		Assert.Equal("A", rows[0]["category"]?.ToString());
@@ -393,7 +393,7 @@ public class ParityVerificationTests5 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.src` (id INT64, val INT64)");
 		await Exec("CREATE TABLE `{ds}.dst` (id INT64, doubled INT64)");
-		await Exec("INSERT INTO `{ds}.src` VALUES (1,10),(2,20),(3,30)");
+		await Exec("INSERT INTO `{ds}.src` (id, val) VALUES (1,10),(2,20),(3,30)");
 		await Exec("INSERT INTO `{ds}.dst` SELECT id, val * 2 FROM `{ds}.src`");
 		var rows = await Q("SELECT id, doubled FROM `{ds}.dst` ORDER BY id");
 		Assert.Equal(3, rows.Count);
@@ -405,7 +405,7 @@ public class ParityVerificationTests5 : IAsyncLifetime
 	public async Task Update_WithSubquery()
 	{
 		await Exec("CREATE TABLE `{ds}.upd` (id INT64, val INT64)");
-		await Exec("INSERT INTO `{ds}.upd` VALUES (1,10),(2,20),(3,30)");
+		await Exec("INSERT INTO `{ds}.upd` (id, val) VALUES (1,10),(2,20),(3,30)");
 		await Exec("UPDATE `{ds}.upd` SET val = val * 2 WHERE id > 1");
 		var rows = await Q("SELECT id, val FROM `{ds}.upd` ORDER BY id");
 		Assert.Equal("10", rows[0]["val"]?.ToString());
@@ -417,7 +417,7 @@ public class ParityVerificationTests5 : IAsyncLifetime
 	public async Task Delete_WithCondition()
 	{
 		await Exec("CREATE TABLE `{ds}.del` (id INT64, active BOOL)");
-		await Exec("INSERT INTO `{ds}.del` VALUES (1,TRUE),(2,FALSE),(3,TRUE),(4,FALSE)");
+		await Exec("INSERT INTO `{ds}.del` (id, active) VALUES (1,TRUE),(2,FALSE),(3,TRUE),(4,FALSE)");
 		await Exec("DELETE FROM `{ds}.del` WHERE active = FALSE");
 		var rows = await Q("SELECT id FROM `{ds}.del` ORDER BY id");
 		Assert.Equal(2, rows.Count);

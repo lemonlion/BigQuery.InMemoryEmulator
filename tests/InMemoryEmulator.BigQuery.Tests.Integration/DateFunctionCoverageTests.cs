@@ -23,7 +23,7 @@ public class DateFunctionCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.events` (id INT64, event_date DATE, label STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.events` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.events` (id, event_date, label) VALUES
 			(1, DATE '2024-01-15', 'new_year'),
 			(2, DATE '2024-03-20', 'spring'),
 			(3, DATE '2024-06-21', 'summer'),

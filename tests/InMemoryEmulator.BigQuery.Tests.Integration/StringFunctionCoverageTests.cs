@@ -23,7 +23,7 @@ public class StringFunctionCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, val STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, val) VALUES
 			(1,'Hello World'),(2,'bigquery'),(3,'foo bar baz'),(4,'123-456-7890'),(5,'  spaces  '),
 			(6,'UPPERCASE'),(7,'MixedCase'),(8,''),(9,'repeat'),(10,'special!@#$')", parameters: null);
 	}

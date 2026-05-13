@@ -23,7 +23,7 @@ public class OrderByAdvancedPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, name STRING, dept STRING, salary INT64, score FLOAT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, name, dept, salary, score) VALUES
 			(1,'Alice','Eng',90000,4.5),
 			(2,'Bob','Eng',75000,NULL),
 			(3,'Carol','Sales',70000,4.2),

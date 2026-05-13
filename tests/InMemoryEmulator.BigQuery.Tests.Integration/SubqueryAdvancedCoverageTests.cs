@@ -23,13 +23,13 @@ public class SubqueryAdvancedCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emp` (id INT64, name STRING, dept STRING, salary INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (id, name, dept, salary) VALUES
 			(1,'Alice','Eng',90000),(2,'Bob','Eng',75000),(3,'Carol','Sales',70000),
 			(4,'Dave','Sales',65000),(5,'Eve','HR',60000),(6,'Frank','HR',58000),
 			(7,'Grace','Eng',85000),(8,'Hank','Sales',72000)", parameters: null);
 
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.bonus` (emp_id INT64, amount INT64, quarter INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.bonus` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.bonus` (emp_id, amount, quarter) VALUES
 			(1,5000,1),(1,6000,2),(2,3000,1),(3,4000,1),(3,4500,2),
 			(7,4000,1),(7,5000,2),(8,3500,1)", parameters: null);
 	}

@@ -37,9 +37,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_InsertOnly()
 	{
 		await E("CREATE TABLE `{ds}.target` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.target` VALUES (1, 'Alice', 100)");
+		await E("INSERT INTO `{ds}.target` (id, name, val) VALUES (1, 'Alice', 100)");
 		await E("CREATE TABLE `{ds}.source` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.source` VALUES (1, 'Alice', 200), (2, 'Bob', 300)");
+		await E("INSERT INTO `{ds}.source` (id, name, val) VALUES (1, 'Alice', 200), (2, 'Bob', 300)");
 
 		await E(@"MERGE `{ds}.target` t USING `{ds}.source` s ON t.id = s.id
 			WHEN NOT MATCHED THEN INSERT (id, name, val) VALUES (s.id, s.name, s.val)");
@@ -56,9 +56,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_UpdateOnly()
 	{
 		await E("CREATE TABLE `{ds}.t2` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.t2` VALUES (1, 'Alice', 100), (2, 'Bob', 200)");
+		await E("INSERT INTO `{ds}.t2` (id, name, val) VALUES (1, 'Alice', 100), (2, 'Bob', 200)");
 		await E("CREATE TABLE `{ds}.s2` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.s2` VALUES (1, 'Alice_Updated', 150), (3, 'Carol', 300)");
+		await E("INSERT INTO `{ds}.s2` (id, name, val) VALUES (1, 'Alice_Updated', 150), (3, 'Carol', 300)");
 
 		await E(@"MERGE `{ds}.t2` t USING `{ds}.s2` s ON t.id = s.id
 			WHEN MATCHED THEN UPDATE SET name = s.name, val = s.val");
@@ -74,9 +74,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_DeleteOnly()
 	{
 		await E("CREATE TABLE `{ds}.t3` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.t3` VALUES (1, 'Alice', 100), (2, 'Bob', 200), (3, 'Carol', 300)");
+		await E("INSERT INTO `{ds}.t3` (id, name, val) VALUES (1, 'Alice', 100), (2, 'Bob', 200), (3, 'Carol', 300)");
 		await E("CREATE TABLE `{ds}.s3` (id INT64)");
-		await E("INSERT INTO `{ds}.s3` VALUES (1), (3)");
+		await E("INSERT INTO `{ds}.s3` (id) VALUES (1), (3)");
 
 		await E(@"MERGE `{ds}.t3` t USING `{ds}.s3` s ON t.id = s.id
 			WHEN MATCHED THEN DELETE");
@@ -90,9 +90,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_InsertAndUpdate()
 	{
 		await E("CREATE TABLE `{ds}.t4` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.t4` VALUES (1, 'Alice', 100), (2, 'Bob', 200)");
+		await E("INSERT INTO `{ds}.t4` (id, name, val) VALUES (1, 'Alice', 100), (2, 'Bob', 200)");
 		await E("CREATE TABLE `{ds}.s4` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.s4` VALUES (1, 'Alice_New', 150), (3, 'Carol', 300)");
+		await E("INSERT INTO `{ds}.s4` (id, name, val) VALUES (1, 'Alice_New', 150), (3, 'Carol', 300)");
 
 		await E(@"MERGE `{ds}.t4` t USING `{ds}.s4` s ON t.id = s.id
 			WHEN MATCHED THEN UPDATE SET name = s.name, val = s.val
@@ -110,9 +110,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_UpdateAndDelete()
 	{
 		await E("CREATE TABLE `{ds}.t5` (id INT64, name STRING, val INT64, active BOOL)");
-		await E("INSERT INTO `{ds}.t5` VALUES (1, 'Alice', 100, true), (2, 'Bob', 200, false), (3, 'Carol', 300, true)");
+		await E("INSERT INTO `{ds}.t5` (id, name, val, active) VALUES (1, 'Alice', 100, true), (2, 'Bob', 200, false), (3, 'Carol', 300, true)");
 		await E("CREATE TABLE `{ds}.s5` (id INT64, val INT64)");
-		await E("INSERT INTO `{ds}.s5` VALUES (1, 150), (2, 250)");
+		await E("INSERT INTO `{ds}.s5` (id, val) VALUES (1, 150), (2, 250)");
 
 		await E(@"MERGE `{ds}.t5` t USING `{ds}.s5` s ON t.id = s.id
 			WHEN MATCHED AND t.active = true THEN UPDATE SET val = s.val
@@ -129,9 +129,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_AllThreeActions()
 	{
 		await E("CREATE TABLE `{ds}.t6` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.t6` VALUES (1, 'Alice', 100), (2, 'Bob', 200), (3, 'Carol', 300)");
+		await E("INSERT INTO `{ds}.t6` (id, name, val) VALUES (1, 'Alice', 100), (2, 'Bob', 200), (3, 'Carol', 300)");
 		await E("CREATE TABLE `{ds}.s6` (id INT64, name STRING, val INT64, action STRING)");
-		await E("INSERT INTO `{ds}.s6` VALUES (1, 'Alice_New', 150, 'update'), (2, 'Bob', 0, 'delete'), (4, 'Dave', 400, 'insert')");
+		await E("INSERT INTO `{ds}.s6` (id, name, val, action) VALUES (1, 'Alice_New', 150, 'update'), (2, 'Bob', 0, 'delete'), (4, 'Dave', 400, 'insert')");
 
 		await E(@"MERGE `{ds}.t6` t USING `{ds}.s6` s ON t.id = s.id
 			WHEN MATCHED AND s.action = 'update' THEN UPDATE SET name = s.name, val = s.val
@@ -149,9 +149,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_SubquerySource()
 	{
 		await E("CREATE TABLE `{ds}.t7` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.t7` VALUES (1, 'Alice', 100), (2, 'Bob', 200)");
+		await E("INSERT INTO `{ds}.t7` (id, name, val) VALUES (1, 'Alice', 100), (2, 'Bob', 200)");
 		await E("CREATE TABLE `{ds}.raw` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.raw` VALUES (1, 'Alice', 150), (2, 'Bob', 250), (3, 'Carol', 300)");
+		await E("INSERT INTO `{ds}.raw` (id, name, val) VALUES (1, 'Alice', 150), (2, 'Bob', 250), (3, 'Carol', 300)");
 
 		await E(@"MERGE `{ds}.t7` t
 			USING (SELECT * FROM `{ds}.raw` WHERE val > 200) s
@@ -170,9 +170,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_UpdateExpression()
 	{
 		await E("CREATE TABLE `{ds}.t8` (id INT64, name STRING, val INT64)");
-		await E("INSERT INTO `{ds}.t8` VALUES (1, 'Alice', 100), (2, 'Bob', 200)");
+		await E("INSERT INTO `{ds}.t8` (id, name, val) VALUES (1, 'Alice', 100), (2, 'Bob', 200)");
 		await E("CREATE TABLE `{ds}.s8` (id INT64, increment INT64)");
-		await E("INSERT INTO `{ds}.s8` VALUES (1, 50), (2, 100)");
+		await E("INSERT INTO `{ds}.s8` (id, increment) VALUES (1, 50), (2, 100)");
 
 		await E(@"MERGE `{ds}.t8` t USING `{ds}.s8` s ON t.id = s.id
 			WHEN MATCHED THEN UPDATE SET val = t.val + s.increment");
@@ -186,9 +186,9 @@ public class MergeStatementCoverageTests : IAsyncLifetime
 	[Fact] public async Task Merge_NoMatchingRows()
 	{
 		await E("CREATE TABLE `{ds}.t9` (id INT64, name STRING)");
-		await E("INSERT INTO `{ds}.t9` VALUES (1, 'Alice'), (2, 'Bob')");
+		await E("INSERT INTO `{ds}.t9` (id, name) VALUES (1, 'Alice'), (2, 'Bob')");
 		await E("CREATE TABLE `{ds}.s9` (id INT64, name STRING)");
-		await E("INSERT INTO `{ds}.s9` VALUES (3, 'Carol')");
+		await E("INSERT INTO `{ds}.s9` (id, name) VALUES (3, 'Carol')");
 
 		await E(@"MERGE `{ds}.t9` t USING `{ds}.s9` s ON t.id = s.id
 			WHEN MATCHED THEN UPDATE SET name = s.name

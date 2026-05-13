@@ -24,7 +24,7 @@ public class WindowPartitionPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.sales` (id INT64, region STRING, product STRING, amount INT64, qty INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` (id, region, product, amount, qty) VALUES
 			(1,'East','Widget',100,5),(2,'East','Gadget',200,3),(3,'East','Widget',150,7),
 			(4,'West','Widget',300,2),(5,'West','Gadget',250,8),(6,'West','Widget',175,4),
 			(7,'North','Gadget',120,6),(8,'North','Widget',80,9),(9,'North','Gadget',90,3),

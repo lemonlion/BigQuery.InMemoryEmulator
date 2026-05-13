@@ -24,7 +24,7 @@ public class GroupByAggregationCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.orders` (id INT64, customer STRING, product STRING, category STRING, amount FLOAT64, qty INT64, is_returned BOOL)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.orders` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.orders` (id, customer, product, category, amount, qty, is_returned) VALUES
 			(1,'Alice','Widget','A',10.50,3,false),(2,'Alice','Gadget','B',25.00,1,false),
 			(3,'Bob','Widget','A',10.50,5,true),(4,'Bob','Thingamajig','C',50.00,1,false),
 			(5,'Carol','Gadget','B',25.00,2,false),(6,'Carol','Widget','A',10.50,4,false),

@@ -443,7 +443,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#any_value
 		await Exec("CREATE TABLE `{ds}.av` (id INT64, val STRING)");
-		await Exec("INSERT INTO `{ds}.av` VALUES (1, 'a'), (2, NULL), (3, 'c')");
+		await Exec("INSERT INTO `{ds}.av` (id, val) VALUES (1, 'a'), (2, NULL), (3, 'c')");
 		var r = await S("SELECT ANY_VALUE(val) FROM `{ds}.av`");
 		// ANY_VALUE returns any non-null value, so it should not be null
 		Assert.NotNull(r);
@@ -468,7 +468,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	{
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#array_concat_agg
 		await Exec("CREATE TABLE `{ds}.aca` (id INT64, arr ARRAY<INT64>)");
-		await Exec("INSERT INTO `{ds}.aca` VALUES (1, [1, 2]), (2, [3, 4])");
+		await Exec("INSERT INTO `{ds}.aca` (id, arr) VALUES (1, [1, 2]), (2, [3, 4])");
 		var r = await S("SELECT ARRAY_LENGTH(ARRAY_CONCAT_AGG(arr)) FROM `{ds}.aca`");
 		Assert.Equal("4", r);
 	}
@@ -535,7 +535,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 		// Ref: https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions#corr
 		// Perfect positive correlation
 		await Exec("CREATE TABLE `{ds}.corr_t` (x FLOAT64, y FLOAT64)");
-		await Exec("INSERT INTO `{ds}.corr_t` VALUES (1.0, 2.0), (2.0, 4.0), (3.0, 6.0)");
+		await Exec("INSERT INTO `{ds}.corr_t` (x, y) VALUES (1.0, 2.0), (2.0, 4.0), (3.0, 6.0)");
 		var r = await S("SELECT ROUND(CORR(x, y), 1) FROM `{ds}.corr_t`");
 		// CORR returns 1.0 (FLOAT64) which FormatValue renders as "1" (integer form for whole floats)
 		Assert.Equal("1", r);
@@ -561,7 +561,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	public async Task InSubquery_Found()
 	{
 		await Exec("CREATE TABLE `{ds}.ins1` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.ins1` VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
+		await Exec("INSERT INTO `{ds}.ins1` (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
 		var rows = await Q("SELECT name FROM `{ds}.ins1` WHERE id IN (SELECT x FROM UNNEST([1, 3]) AS x) ORDER BY name");
 		Assert.Equal(2, rows.Count);
 		Assert.Equal("Alice", rows[0]["name"]?.ToString());
@@ -574,7 +574,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	public async Task InSubquery_NotIn()
 	{
 		await Exec("CREATE TABLE `{ds}.ins2` (id INT64, name STRING)");
-		await Exec("INSERT INTO `{ds}.ins2` VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
+		await Exec("INSERT INTO `{ds}.ins2` (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
 		var rows = await Q("SELECT name FROM `{ds}.ins2` WHERE id NOT IN (SELECT x FROM UNNEST([1, 3]) AS x) ORDER BY name");
 		Assert.Single(rows);
 		Assert.Equal("Bob", rows[0]["name"]?.ToString());
@@ -591,7 +591,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	public async Task Pivot_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.pvt` (product STRING, quarter STRING, revenue INT64)");
-		await Exec("INSERT INTO `{ds}.pvt` VALUES ('A','Q1',100), ('A','Q2',200), ('B','Q1',150), ('B','Q2',250)");
+		await Exec("INSERT INTO `{ds}.pvt` (product, quarter, revenue) VALUES ('A','Q1',100), ('A','Q2',200), ('B','Q1',150), ('B','Q2',250)");
 		var rows = await Q(@"
 			SELECT * FROM `{ds}.pvt`
 			PIVOT(SUM(revenue) FOR quarter IN ('Q1', 'Q2'))
@@ -612,7 +612,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	public async Task Merge_InsertAndUpdate()
 	{
 		await Exec("CREATE TABLE `{ds}.mt` (id INT64, val STRING)");
-		await Exec("INSERT INTO `{ds}.mt` VALUES (1, 'old')");
+		await Exec("INSERT INTO `{ds}.mt` (id, val) VALUES (1, 'old')");
 		await Exec(@"
 			MERGE `{ds}.mt` AS t
 			USING (SELECT 1 AS id, 'new' AS val UNION ALL SELECT 2, 'added') AS s
@@ -631,7 +631,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	public async Task Merge_Delete()
 	{
 		await Exec("CREATE TABLE `{ds}.md` (id INT64, active BOOL)");
-		await Exec("INSERT INTO `{ds}.md` VALUES (1, TRUE), (2, FALSE), (3, TRUE)");
+		await Exec("INSERT INTO `{ds}.md` (id, active) VALUES (1, TRUE), (2, FALSE), (3, TRUE)");
 		await Exec(@"
 			MERGE `{ds}.md` AS t
 			USING (SELECT id FROM `{ds}.md` WHERE active = FALSE) AS s
@@ -793,7 +793,7 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	public async Task Unpivot_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.upvt` (id INT64, q1 INT64, q2 INT64)");
-		await Exec("INSERT INTO `{ds}.upvt` VALUES (1, 100, 200), (2, 150, 250)");
+		await Exec("INSERT INTO `{ds}.upvt` (id, q1, q2) VALUES (1, 100, 200), (2, 150, 250)");
 		var rows = await Q(@"
 			SELECT * FROM `{ds}.upvt`
 			UNPIVOT(revenue FOR quarter IN (q1, q2))
@@ -814,8 +814,8 @@ public class ParityVerificationTests4 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.ss1` (id INT64, dept STRING)");
 		await Exec("CREATE TABLE `{ds}.ss2` (dept STRING, budget INT64)");
-		await Exec("INSERT INTO `{ds}.ss1` VALUES (1, 'eng'), (2, 'sales')");
-		await Exec("INSERT INTO `{ds}.ss2` VALUES ('eng', 1000), ('sales', 500)");
+		await Exec("INSERT INTO `{ds}.ss1` (id, dept) VALUES (1, 'eng'), (2, 'sales')");
+		await Exec("INSERT INTO `{ds}.ss2` (dept, budget) VALUES ('eng', 1000), ('sales', 500)");
 		var rows = await Q(@"
 			SELECT id, (SELECT budget FROM `{ds}.ss2` WHERE dept = t.dept) AS budget
 			FROM `{ds}.ss1` AS t ORDER BY id");

@@ -41,7 +41,7 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	public async Task StringAgg_DistinctAndOrderBy()
 	{
 		await Exec("CREATE TABLE `{ds}.sado1` (val STRING)");
-		await Exec("INSERT INTO `{ds}.sado1` VALUES ('c'),('a'),('b'),('a'),('c')");
+		await Exec("INSERT INTO `{ds}.sado1` (val) VALUES ('c'),('a'),('b'),('a'),('c')");
 		var result = await S("SELECT STRING_AGG(DISTINCT val, ',' ORDER BY val ASC) FROM `{ds}.sado1`");
 		Assert.Equal("a,b,c", result);
 	}
@@ -54,7 +54,7 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	public async Task Window_OverGroupedAggregate()
 	{
 		await Exec("CREATE TABLE `{ds}.wga1` (grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.wga1` VALUES ('A',10),('A',20),('B',30),('C',40)");
+		await Exec("INSERT INTO `{ds}.wga1` (grp, val) VALUES ('A',10),('A',20),('B',30),('C',40)");
 		var rows = await Q("SELECT grp, SUM(val) AS total, RANK() OVER (ORDER BY SUM(val) DESC) AS rnk FROM `{ds}.wga1` GROUP BY grp ORDER BY rnk");
 		Assert.Equal(3, rows.Count);
 		Assert.Equal("C", rows[0]["grp"]?.ToString());
@@ -87,8 +87,8 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.ju1` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.ju2` (id INT64, score INT64)");
-		await Exec("INSERT INTO `{ds}.ju1` VALUES (1,'Alice'),(2,'Bob')");
-		await Exec("INSERT INTO `{ds}.ju2` VALUES (1,90),(2,85)");
+		await Exec("INSERT INTO `{ds}.ju1` (id, name) VALUES (1,'Alice'),(2,'Bob')");
+		await Exec("INSERT INTO `{ds}.ju2` (id, score) VALUES (1,90),(2,85)");
 		var rows = await Q("SELECT id, name, score FROM `{ds}.ju1` JOIN `{ds}.ju2` USING (id) ORDER BY id");
 		Assert.Equal(2, rows.Count);
 		Assert.Equal("Alice", rows[0]["name"]?.ToString());
@@ -103,8 +103,8 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.lj1` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.lj2` (id INT64, score INT64)");
-		await Exec("INSERT INTO `{ds}.lj1` VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')");
-		await Exec("INSERT INTO `{ds}.lj2` VALUES (1,90),(2,85)");
+		await Exec("INSERT INTO `{ds}.lj1` (id, name) VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')");
+		await Exec("INSERT INTO `{ds}.lj2` (id, score) VALUES (1,90),(2,85)");
 		var rows = await Q("SELECT l.id, l.name, r.score FROM `{ds}.lj1` l LEFT JOIN `{ds}.lj2` r ON l.id = r.id ORDER BY l.id");
 		Assert.Equal(3, rows.Count);
 		Assert.Null(rows[2]["score"]);
@@ -117,7 +117,7 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	public async Task Qualify_RowNumber()
 	{
 		await Exec("CREATE TABLE `{ds}.q1` (grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.q1` VALUES ('A',10),('A',20),('B',5),('B',15)");
+		await Exec("INSERT INTO `{ds}.q1` (grp, val) VALUES ('A',10),('A',20),('B',5),('B',15)");
 		var rows = await Q("SELECT grp, val FROM `{ds}.q1` QUALIFY ROW_NUMBER() OVER (PARTITION BY grp ORDER BY val DESC) = 1 ORDER BY grp");
 		Assert.Equal(2, rows.Count);
 		Assert.Equal("A", rows[0]["grp"]?.ToString());
@@ -254,7 +254,7 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	public async Task GroupBy_Rollup()
 	{
 		await Exec("CREATE TABLE `{ds}.gr1` (cat STRING, sub STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.gr1` VALUES ('A','x',1),('A','y',2),('B','x',3)");
+		await Exec("INSERT INTO `{ds}.gr1` (cat, sub, val) VALUES ('A','x',1),('A','y',2),('B','x',3)");
 		var rows = await Q("SELECT cat, sub, SUM(val) AS total FROM `{ds}.gr1` GROUP BY ROLLUP(cat, sub) ORDER BY cat NULLS LAST, sub NULLS LAST");
 		// ROLLUP(cat, sub) generates: (cat,sub), (cat,NULL), (NULL,NULL)
 		// A,x,1  A,y,2  A,NULL,3  B,x,3  B,NULL,3  NULL,NULL,6
@@ -268,7 +268,7 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	public async Task PercentRank()
 	{
 		await Exec("CREATE TABLE `{ds}.pr1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.pr1` VALUES (10),(20),(30),(40)");
+		await Exec("INSERT INTO `{ds}.pr1` (val) VALUES (10),(20),(30),(40)");
 		var rows = await Q("SELECT val, PERCENT_RANK() OVER (ORDER BY val) AS pr FROM `{ds}.pr1` ORDER BY val");
 		Assert.Equal(4, rows.Count);
 		// PERCENT_RANK = (rank - 1) / (total - 1)
@@ -283,7 +283,7 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	public async Task CumeDist()
 	{
 		await Exec("CREATE TABLE `{ds}.cd1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.cd1` VALUES (10),(20),(30),(40)");
+		await Exec("INSERT INTO `{ds}.cd1` (val) VALUES (10),(20),(30),(40)");
 		var rows = await Q("SELECT val, CUME_DIST() OVER (ORDER BY val) AS cd FROM `{ds}.cd1` ORDER BY val");
 		Assert.Equal(4, rows.Count);
 		// CUME_DIST = row_number / total
@@ -297,7 +297,7 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	public async Task NthValue()
 	{
 		await Exec("CREATE TABLE `{ds}.nv1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.nv1` VALUES (10),(20),(30),(40),(50)");
+		await Exec("INSERT INTO `{ds}.nv1` (val) VALUES (10),(20),(30),(40),(50)");
 		var rows = await Q("SELECT val, NTH_VALUE(val, 3) OVER (ORDER BY val ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS nth FROM `{ds}.nv1` ORDER BY val");
 		Assert.Equal(5, rows.Count);
 		Assert.Equal("30", rows[0]["nth"]?.ToString());
@@ -357,7 +357,7 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	public async Task Having_MultipleAggregates()
 	{
 		await Exec("CREATE TABLE `{ds}.hm1` (grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.hm1` VALUES ('A',10),('A',20),('B',5),('C',100)");
+		await Exec("INSERT INTO `{ds}.hm1` (grp, val) VALUES ('A',10),('A',20),('B',5),('C',100)");
 		var rows = await Q("SELECT grp, COUNT(*) AS cnt, SUM(val) AS total FROM `{ds}.hm1` GROUP BY grp HAVING COUNT(*) > 1 AND SUM(val) < 50 ORDER BY grp");
 		Assert.Single(rows);
 		Assert.Equal("A", rows[0]["grp"]?.ToString());
@@ -371,8 +371,8 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.ex1` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.ex2` (parent_id INT64)");
-		await Exec("INSERT INTO `{ds}.ex1` VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')");
-		await Exec("INSERT INTO `{ds}.ex2` VALUES (1),(3)");
+		await Exec("INSERT INTO `{ds}.ex1` (id, name) VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')");
+		await Exec("INSERT INTO `{ds}.ex2` (parent_id) VALUES (1),(3)");
 		var rows = await Q("SELECT name FROM `{ds}.ex1` t WHERE EXISTS (SELECT 1 FROM `{ds}.ex2` t2 WHERE t2.parent_id = t.id) ORDER BY name");
 		Assert.Equal(2, rows.Count);
 		Assert.Equal("Alice", rows[0]["name"]?.ToString());
@@ -386,8 +386,8 @@ public class ParityVerificationTests3 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.ne1` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.ne2` (parent_id INT64)");
-		await Exec("INSERT INTO `{ds}.ne1` VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')");
-		await Exec("INSERT INTO `{ds}.ne2` VALUES (1),(3)");
+		await Exec("INSERT INTO `{ds}.ne1` (id, name) VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')");
+		await Exec("INSERT INTO `{ds}.ne2` (parent_id) VALUES (1),(3)");
 		var rows = await Q("SELECT name FROM `{ds}.ne1` t WHERE NOT EXISTS (SELECT 1 FROM `{ds}.ne2` t2 WHERE t2.parent_id = t.id) ORDER BY name");
 		Assert.Single(rows);
 		Assert.Equal("Bob", rows[0]["name"]?.ToString());

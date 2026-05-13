@@ -23,7 +23,7 @@ public class LimitOffsetPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.items` (id INT64, name STRING, val INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.items` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.items` (id, name, val) VALUES
 			(1,'a',10),(2,'b',20),(3,'c',30),(4,'d',40),(5,'e',50),
 			(6,'f',60),(7,'g',70),(8,'h',80),(9,'i',90),(10,'j',100),
 			(11,'k',110),(12,'l',120),(13,'m',130),(14,'n',140),(15,'o',150)", parameters: null);

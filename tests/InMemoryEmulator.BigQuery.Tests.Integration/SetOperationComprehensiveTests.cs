@@ -24,8 +24,8 @@ public class SetOperationComprehensiveTests : IAsyncLifetime
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.a` (id INT64, name STRING)", parameters: null);
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.b` (id INT64, name STRING)", parameters: null);
-		await c.ExecuteQueryAsync($"INSERT INTO `{_ds}.a` VALUES (1,'Alice'),(2,'Bob'),(3,'Carol'),(4,'Dave')", parameters: null);
-		await c.ExecuteQueryAsync($"INSERT INTO `{_ds}.b` VALUES (3,'Carol'),(4,'Dave'),(5,'Eve'),(6,'Frank')", parameters: null);
+		await c.ExecuteQueryAsync($"INSERT INTO `{_ds}.a` (id, name) VALUES (1,'Alice'),(2,'Bob'),(3,'Carol'),(4,'Dave')", parameters: null);
+		await c.ExecuteQueryAsync($"INSERT INTO `{_ds}.b` (id, name) VALUES (3,'Carol'),(4,'Dave'),(5,'Eve'),(6,'Frank')", parameters: null);
 	}
 
 	public async ValueTask DisposeAsync()

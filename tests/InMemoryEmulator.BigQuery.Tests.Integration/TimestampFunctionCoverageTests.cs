@@ -24,7 +24,7 @@ public class TimestampFunctionCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.events` (id INT64, ts TIMESTAMP, label STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.events` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.events` (id, ts, label) VALUES
 			(1, TIMESTAMP '2024-01-15 10:30:00 UTC', 'event_a'),
 			(2, TIMESTAMP '2024-03-20 14:45:00 UTC', 'event_b'),
 			(3, TIMESTAMP '2024-06-01 08:00:00 UTC', 'event_c'),

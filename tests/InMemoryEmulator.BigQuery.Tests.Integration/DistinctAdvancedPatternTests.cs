@@ -23,7 +23,7 @@ public class DistinctAdvancedPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, cat STRING, sub STRING, val INT64, tag STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, cat, sub, val, tag) VALUES
 			(1,'A','x',10,'red'),(2,'A','x',20,'blue'),(3,'A','y',10,'red'),
 			(4,'B','x',30,'red'),(5,'B','y',40,'green'),(6,'B','y',30,'blue'),
 			(7,'C','x',50,'red'),(8,'C','x',50,'red'),(9,'C','z',60,NULL),

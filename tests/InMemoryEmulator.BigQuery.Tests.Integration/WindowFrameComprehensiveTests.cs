@@ -23,7 +23,7 @@ public class WindowFrameComprehensiveTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.sales` (id INT64, region STRING, month INT64, revenue FLOAT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.sales` (id, region, month, revenue) VALUES
 			(1,'East',1,100),(2,'East',2,150),(3,'East',3,120),(4,'East',4,200),
 			(5,'West',1,80),(6,'West',2,110),(7,'West',3,90),(8,'West',4,170),
 			(9,'East',5,180),(10,'West',5,130)", parameters: null);

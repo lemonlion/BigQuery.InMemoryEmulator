@@ -23,7 +23,7 @@ public class CteAdvancedCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emp` (id INT64, name STRING, dept STRING, salary INT64, mgr_id INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (id, name, dept, salary, mgr_id) VALUES
 			(1,'Alice','Eng',90000,NULL),(2,'Bob','Eng',75000,1),(3,'Carol','Sales',70000,NULL),
 			(4,'Dave','Sales',65000,3),(5,'Eve','HR',60000,NULL),(6,'Frank','Eng',85000,1),
 			(7,'Grace','Sales',72000,3),(8,'Hank','HR',55000,5)", parameters: null);

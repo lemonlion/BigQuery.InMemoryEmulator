@@ -23,7 +23,7 @@ public class HashEncodingCoverageTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, val STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, val) VALUES
 			(1,'hello'),(2,'world'),(3,'test'),(4,'BigQuery'),(5,'')", parameters: null);
 	}
 

@@ -23,7 +23,7 @@ public class WhereClauseComprehensiveTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, name STRING, score FLOAT64, grade STRING, active BOOL)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, name, score, grade, active) VALUES
 			(1,'Alice',95,'A',true),(2,'Bob',82,'B',true),(3,'Carol',78,'C',false),
 			(4,'Dave',91,'A',true),(5,'Eve',65,'D',false),(6,'Frank',NULL,'F',NULL),
 			(7,'Grace',88,'B',true),(8,'Hank',72,'C',false),(9,'Ivy',99,'A',true),

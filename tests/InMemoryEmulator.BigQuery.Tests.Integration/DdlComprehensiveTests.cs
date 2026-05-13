@@ -91,7 +91,7 @@ public class DdlComprehensiveTests : IAsyncLifetime
 	[Fact] public async Task CreateTableAsSelect_Basic()
 	{
 		await Exec($"CREATE TABLE `{_datasetId}.src1` (id INT64, name STRING)");
-		await Exec($"INSERT INTO `{_datasetId}.src1` VALUES (1, 'A'), (2, 'B')");
+		await Exec($"INSERT INTO `{_datasetId}.src1` (id, name) VALUES (1, 'A'), (2, 'B')");
 		await Exec($"CREATE TABLE `{_datasetId}.ctas1` AS SELECT * FROM `{_datasetId}.src1`");
 		Assert.Equal("2", await Scalar($"SELECT COUNT(*) FROM `{_datasetId}.ctas1`"));
 	}
@@ -99,7 +99,7 @@ public class DdlComprehensiveTests : IAsyncLifetime
 	[Fact] public async Task CreateTableAsSelect_WithTransform()
 	{
 		await Exec($"CREATE TABLE `{_datasetId}.src2` (id INT64, name STRING)");
-		await Exec($"INSERT INTO `{_datasetId}.src2` VALUES (1, 'hello')");
+		await Exec($"INSERT INTO `{_datasetId}.src2` (id, name) VALUES (1, 'hello')");
 		await Exec($"CREATE TABLE `{_datasetId}.ctas2` AS SELECT id * 2 AS double_id, UPPER(name) AS upper_name FROM `{_datasetId}.src2`");
 		var rows = await Query($"SELECT * FROM `{_datasetId}.ctas2`");
 		Assert.Equal("2", rows[0]["double_id"]?.ToString());
@@ -150,7 +150,7 @@ public class DdlComprehensiveTests : IAsyncLifetime
 	[Fact] public async Task TruncateTable_RemovesAllRows()
 	{
 		await Exec($"CREATE TABLE `{_datasetId}.tt1` (id INT64)");
-		await Exec($"INSERT INTO `{_datasetId}.tt1` VALUES (1), (2), (3)");
+		await Exec($"INSERT INTO `{_datasetId}.tt1` (id) VALUES (1), (2), (3)");
 		await Exec($"TRUNCATE TABLE `{_datasetId}.tt1`");
 		Assert.Equal("0", await Scalar($"SELECT COUNT(*) FROM `{_datasetId}.tt1`"));
 	}
@@ -159,7 +159,7 @@ public class DdlComprehensiveTests : IAsyncLifetime
 	[Fact] public async Task CreateView_Basic()
 	{
 		await Exec($"CREATE TABLE `{_datasetId}.vt1` (id INT64, name STRING)");
-		await Exec($"INSERT INTO `{_datasetId}.vt1` VALUES (1, 'A'), (2, 'B')");
+		await Exec($"INSERT INTO `{_datasetId}.vt1` (id, name) VALUES (1, 'A'), (2, 'B')");
 		await Exec($"CREATE VIEW `{_datasetId}.v1` AS SELECT * FROM `{_datasetId}.vt1`");
 		Assert.Equal("2", await Scalar($"SELECT COUNT(*) FROM `{_datasetId}.v1`"));
 	}
@@ -167,7 +167,7 @@ public class DdlComprehensiveTests : IAsyncLifetime
 	[Fact] public async Task CreateView_WithFilter()
 	{
 		await Exec($"CREATE TABLE `{_datasetId}.vt2` (id INT64, active BOOL)");
-		await Exec($"INSERT INTO `{_datasetId}.vt2` VALUES (1, TRUE), (2, FALSE), (3, TRUE)");
+		await Exec($"INSERT INTO `{_datasetId}.vt2` (id, active) VALUES (1, TRUE), (2, FALSE), (3, TRUE)");
 		await Exec($"CREATE VIEW `{_datasetId}.v2` AS SELECT id FROM `{_datasetId}.vt2` WHERE active = TRUE");
 		Assert.Equal("2", await Scalar($"SELECT COUNT(*) FROM `{_datasetId}.v2`"));
 	}

@@ -80,7 +80,7 @@ public class ConversionFunctionCoverageTests : IAsyncLifetime
 	{
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, val STRING)", parameters: null);
-		await c.ExecuteQueryAsync($"INSERT INTO `{_ds}.t` VALUES (1,'10'),(2,'20'),(3,'30')", parameters: null);
+		await c.ExecuteQueryAsync($"INSERT INTO `{_ds}.t` (id, val) VALUES (1,'10'),(2,'20'),(3,'30')", parameters: null);
 		var v = await S("SELECT COUNT(*) FROM `{ds}.t` WHERE CAST(val AS INT64) > 15");
 		Assert.Equal("2", v);
 	}

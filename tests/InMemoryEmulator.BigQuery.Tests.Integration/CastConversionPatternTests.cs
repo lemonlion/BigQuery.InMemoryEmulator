@@ -119,14 +119,14 @@ public class CastConversionPatternTests : IAsyncLifetime
 	[Fact] public async Task Cast_InWhere()
 	{
 		await Exec("CREATE TABLE `{ds}.tc` (id INT64, val STRING)");
-		await Exec("INSERT INTO `{ds}.tc` VALUES (1,'10'),(2,'20'),(3,'30')");
+		await Exec("INSERT INTO `{ds}.tc` (id, val) VALUES (1,'10'),(2,'20'),(3,'30')");
 		var v = await S("SELECT COUNT(*) FROM `{ds}.tc` WHERE CAST(val AS INT64) > 15");
 		Assert.Equal("2", v);
 	}
 	[Fact] public async Task Cast_InOrderBy()
 	{
 		await Exec("CREATE TABLE `{ds}.to1` (id INT64, num STRING)");
-		await Exec("INSERT INTO `{ds}.to1` VALUES (1,'10'),(2,'2'),(3,'20')");
+		await Exec("INSERT INTO `{ds}.to1` (id, num) VALUES (1,'10'),(2,'2'),(3,'20')");
 		var rows = await Q("SELECT id FROM `{ds}.to1` ORDER BY CAST(num AS INT64)");
 		Assert.Equal("2", rows[0]["id"]?.ToString()); // 2
 		Assert.Equal("1", rows[1]["id"]?.ToString()); // 10

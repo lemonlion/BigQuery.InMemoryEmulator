@@ -23,7 +23,7 @@ public class AggregateFunctionPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, dept STRING, salary INT64, active BOOL, rating FLOAT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, dept, salary, active, rating) VALUES
 			(1,'Eng',90000,true,4.5),(2,'Eng',75000,false,3.8),(3,'Sales',70000,true,4.2),
 			(4,'Sales',65000,true,3.5),(5,'HR',60000,false,4.0),(6,'HR',58000,true,3.2),
 			(7,'Eng',85000,true,4.7),(8,'Sales',72000,false,NULL)", parameters: null);

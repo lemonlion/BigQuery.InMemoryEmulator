@@ -23,7 +23,7 @@ public class StringTransformPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.strings` (id INT64, val STRING)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.strings` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.strings` (id, val) VALUES
 			(1,'Hello World'),(2,'foo bar baz'),(3,'  spaces  '),(4,'UPPER'),
 			(5,'lower'),(6,'MiXeD CaSe'),(7,'repeat'),(8,'abc123def'),
 			(9,''),(10,NULL),(11,'a,b,c,d'),(12,'hello---world')", parameters: null);

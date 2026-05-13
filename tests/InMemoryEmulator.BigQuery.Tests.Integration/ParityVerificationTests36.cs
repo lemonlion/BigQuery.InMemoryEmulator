@@ -63,7 +63,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	[Fact] public async Task Table_TimestampColumn()
 	{
 		await Exec("CREATE TABLE `{ds}.events` (id INT64, name STRING, ts TIMESTAMP)");
-		await Exec(@"INSERT INTO `{ds}.events` VALUES 
+		await Exec(@"INSERT INTO `{ds}.events` (id, name, ts) VALUES 
 			(1, 'start', TIMESTAMP '2024-01-01 10:00:00 UTC'),
 			(2, 'middle', TIMESTAMP '2024-01-01 12:00:00 UTC'),
 			(3, 'end', TIMESTAMP '2024-01-01 14:00:00 UTC')");
@@ -88,7 +88,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	[Fact] public async Task Table_DateColumn()
 	{
 		await Exec("CREATE TABLE `{ds}.tasks` (id INT64, title STRING, due_date DATE)");
-		await Exec(@"INSERT INTO `{ds}.tasks` VALUES 
+		await Exec(@"INSERT INTO `{ds}.tasks` (id, title, due_date) VALUES 
 			(1, 'Task A', DATE '2024-06-01'),
 			(2, 'Task B', DATE '2024-06-15'),
 			(3, 'Task C', DATE '2024-07-01')");
@@ -109,7 +109,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	[Fact] public async Task Update_MultipleColumns()
 	{
 		await Exec("CREATE TABLE `{ds}.inventory` (id INT64, name STRING, qty INT64, price FLOAT64)");
-		await Exec("INSERT INTO `{ds}.inventory` VALUES (1, 'Widget', 100, 5.0), (2, 'Gadget', 50, 10.0)");
+		await Exec("INSERT INTO `{ds}.inventory` (id, name, qty, price) VALUES (1, 'Widget', 100, 5.0), (2, 'Gadget', 50, 10.0)");
 		await Exec("UPDATE `{ds}.inventory` SET qty = qty - 10, price = price * 1.05 WHERE id = 1");
 
 		var rows = await Q("SELECT name, qty, price FROM `{ds}.inventory` WHERE id = 1");
@@ -127,7 +127,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.src` (id INT64, val STRING)");
 		await Exec("CREATE TABLE `{ds}.dst` (id INT64, upper_val STRING)");
-		await Exec("INSERT INTO `{ds}.src` VALUES (1, 'hello'), (2, 'world')");
+		await Exec("INSERT INTO `{ds}.src` (id, val) VALUES (1, 'hello'), (2, 'world')");
 		await Exec("INSERT INTO `{ds}.dst` SELECT id, UPPER(val) FROM `{ds}.src`");
 
 		var rows = await Q("SELECT id, upper_val FROM `{ds}.dst` ORDER BY id");
@@ -143,7 +143,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	[Fact] public async Task Table_WindowRunningTotal()
 	{
 		await Exec("CREATE TABLE `{ds}.txns` (id INT64, amount FLOAT64)");
-		await Exec("INSERT INTO `{ds}.txns` VALUES (1, 100), (2, -30), (3, 50), (4, -20)");
+		await Exec("INSERT INTO `{ds}.txns` (id, amount) VALUES (1, 100), (2, -30), (3, 50), (4, -20)");
 
 		var rows = await Q(@"
 			SELECT id, amount, SUM(amount) OVER (ORDER BY id) AS running_balance
@@ -164,8 +164,8 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	{
 		await Exec("CREATE TABLE `{ds}.categories` (id INT64, name STRING)");
 		await Exec("CREATE TABLE `{ds}.products` (id INT64, cat_id INT64, price FLOAT64)");
-		await Exec("INSERT INTO `{ds}.categories` VALUES (1, 'Electronics'), (2, 'Clothing')");
-		await Exec("INSERT INTO `{ds}.products` VALUES (1, 1, 999), (2, 1, 499), (3, 2, 49), (4, 2, 79)");
+		await Exec("INSERT INTO `{ds}.categories` (id, name) VALUES (1, 'Electronics'), (2, 'Clothing')");
+		await Exec("INSERT INTO `{ds}.products` (id, cat_id, price) VALUES (1, 1, 999), (2, 1, 499), (3, 2, 49), (4, 2, 79)");
 
 		var rows = await Q(@"
 			SELECT c.name, COUNT(*) AS cnt, SUM(p.price) AS total
@@ -188,7 +188,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	[Fact] public async Task Table_BooleanColumn()
 	{
 		await Exec("CREATE TABLE `{ds}.flags` (id INT64, name STRING, active BOOL)");
-		await Exec("INSERT INTO `{ds}.flags` VALUES (1, 'A', TRUE), (2, 'B', FALSE), (3, 'C', TRUE)");
+		await Exec("INSERT INTO `{ds}.flags` (id, name, active) VALUES (1, 'A', TRUE), (2, 'B', FALSE), (3, 'C', TRUE)");
 
 		var rows = await Q("SELECT name FROM `{ds}.flags` WHERE active = TRUE ORDER BY name");
 		Assert.Equal(2, rows.Count);
@@ -203,7 +203,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	[Fact] public async Task Table_NullValues()
 	{
 		await Exec("CREATE TABLE `{ds}.nullable` (id INT64, val STRING)");
-		await Exec("INSERT INTO `{ds}.nullable` VALUES (1, 'hello'), (2, NULL), (3, 'world')");
+		await Exec("INSERT INTO `{ds}.nullable` (id, val) VALUES (1, 'hello'), (2, NULL), (3, 'world')");
 
 		var rows = await Q(@"
 			SELECT id, COALESCE(val, 'N/A') AS display_val
@@ -222,7 +222,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	[Fact] public async Task Update_WithCase()
 	{
 		await Exec("CREATE TABLE `{ds}.scores` (id INT64, name STRING, score INT64, grade STRING)");
-		await Exec(@"INSERT INTO `{ds}.scores` VALUES 
+		await Exec(@"INSERT INTO `{ds}.scores` (id, name, score, grade) VALUES 
 			(1, 'Alice', 95, ''), (2, 'Bob', 72, ''), (3, 'Carol', 88, '')");
 		await Exec(@"UPDATE `{ds}.scores` SET grade = 
 			CASE WHEN score >= 90 THEN 'A' WHEN score >= 80 THEN 'B' ELSE 'C' END
@@ -244,7 +244,7 @@ public class ParityVerificationTests36 : IAsyncLifetime
 	[Fact] public async Task Table_CountDistinct()
 	{
 		await Exec("CREATE TABLE `{ds}.visits` (id INT64, user_id INT64, page STRING)");
-		await Exec(@"INSERT INTO `{ds}.visits` VALUES 
+		await Exec(@"INSERT INTO `{ds}.visits` (id, user_id, page) VALUES 
 			(1, 1, 'home'), (2, 1, 'about'), (3, 2, 'home'),
 			(4, 2, 'home'), (5, 3, 'contact')");
 

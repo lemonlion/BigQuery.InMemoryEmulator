@@ -23,7 +23,7 @@ public class NullPropagationPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.data` (id INT64, val INT64, txt STRING, flt FLOAT64, flag BOOL)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.data` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.data` (id, val, txt, flt, flag) VALUES
 			(1,10,'hello',1.5,true),(2,20,'world',2.5,false),(3,NULL,NULL,NULL,NULL),
 			(4,30,'foo',3.5,true),(5,0,'',0.0,false),(6,-1,NULL,-1.0,NULL)", parameters: null);
 	}

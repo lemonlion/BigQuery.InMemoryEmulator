@@ -41,7 +41,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task Having_Between_OnAggregate()
 	{
 		await Exec("CREATE TABLE `{ds}.hb1` (grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.hb1` VALUES ('A',10),('A',20),('B',100),('B',200),('C',5)");
+		await Exec("INSERT INTO `{ds}.hb1` (grp, val) VALUES ('A',10),('A',20),('B',100),('B',200),('C',5)");
 		var rows = await Q("SELECT grp, SUM(val) AS total FROM `{ds}.hb1` GROUP BY grp HAVING SUM(val) BETWEEN 10 AND 100 ORDER BY grp");
 		// A: 10+20=30 (between 10 and 100 → included), B: 100+200=300 (not), C: 5 (not)
 		Assert.Single(rows);
@@ -95,9 +95,9 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task Coalesce_CorrelatedSubquery()
 	{
 		await Exec("CREATE TABLE `{ds}.cc1` (id INT64, val INT64)");
-		await Exec("INSERT INTO `{ds}.cc1` VALUES (1, 10),(2, NULL),(3, 30)");
+		await Exec("INSERT INTO `{ds}.cc1` (id, val) VALUES (1, 10),(2, NULL),(3, 30)");
 		await Exec("CREATE TABLE `{ds}.cc2` (id INT64, fallback INT64)");
-		await Exec("INSERT INTO `{ds}.cc2` VALUES (1, 100),(2, 200),(3, 300)");
+		await Exec("INSERT INTO `{ds}.cc2` (id, fallback) VALUES (1, 100),(2, 200),(3, 300)");
 		var rows = await Q(@"
 			SELECT a.id, COALESCE(a.val, (SELECT b.fallback FROM `{ds}.cc2` b WHERE b.id = a.id)) AS result
 			FROM `{ds}.cc1` a ORDER BY a.id");
@@ -130,7 +130,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task If_WithAggregateInSubquery()
 	{
 		await Exec("CREATE TABLE `{ds}.ifa` (val INT64)");
-		await Exec("INSERT INTO `{ds}.ifa` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.ifa` (val) VALUES (1),(2),(3),(4),(5)");
 		Assert.Equal("big", await S("SELECT IF(SUM(val) > 10, 'big', 'small') FROM `{ds}.ifa`"));
 	}
 
@@ -207,7 +207,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task Window_RowsBetween_Preceding()
 	{
 		await Exec("CREATE TABLE `{ds}.wfr` (val INT64)");
-		await Exec("INSERT INTO `{ds}.wfr` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.wfr` (val) VALUES (1),(2),(3),(4),(5)");
 		var rows = await Q(@"
 			SELECT val, SUM(val) OVER (ORDER BY val ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS rolling
 			FROM `{ds}.wfr` ORDER BY val");
@@ -220,7 +220,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task Window_RowsBetween_Following()
 	{
 		await Exec("CREATE TABLE `{ds}.wff` (val INT64)");
-		await Exec("INSERT INTO `{ds}.wff` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.wff` (val) VALUES (1),(2),(3),(4),(5)");
 		var rows = await Q(@"
 			SELECT val, SUM(val) OVER (ORDER BY val ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) AS rolling
 			FROM `{ds}.wff` ORDER BY val");
@@ -264,7 +264,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task Countif_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.cif` (val INT64)");
-		await Exec("INSERT INTO `{ds}.cif` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)");
+		await Exec("INSERT INTO `{ds}.cif` (val) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)");
 		Assert.Equal("5", await S("SELECT COUNTIF(val > 5) FROM `{ds}.cif`"));
 	}
 
@@ -275,7 +275,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task ApproxCountDistinct_Basic()
 	{
 		await Exec("CREATE TABLE `{ds}.acd` (val INT64)");
-		await Exec("INSERT INTO `{ds}.acd` VALUES (1),(2),(2),(3),(3),(3),(4),(4),(4),(4)");
+		await Exec("INSERT INTO `{ds}.acd` (val) VALUES (1),(2),(2),(3),(3),(3),(4),(4),(4),(4)");
 		Assert.Equal("4", await S("SELECT APPROX_COUNT_DISTINCT(val) FROM `{ds}.acd`"));
 	}
 
@@ -312,7 +312,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task LogicalAnd_MixedValues()
 	{
 		await Exec("CREATE TABLE `{ds}.la1` (flag BOOL)");
-		await Exec("INSERT INTO `{ds}.la1` VALUES (true),(true),(false)");
+		await Exec("INSERT INTO `{ds}.la1` (flag) VALUES (true),(true),(false)");
 		Assert.Equal("False", await S("SELECT LOGICAL_AND(flag) FROM `{ds}.la1`"));
 	}
 
@@ -320,7 +320,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task LogicalOr_MixedValues()
 	{
 		await Exec("CREATE TABLE `{ds}.lo1` (flag BOOL)");
-		await Exec("INSERT INTO `{ds}.lo1` VALUES (false),(false),(true)");
+		await Exec("INSERT INTO `{ds}.lo1` (flag) VALUES (false),(false),(true)");
 		Assert.Equal("True", await S("SELECT LOGICAL_OR(flag) FROM `{ds}.lo1`"));
 	}
 
@@ -346,7 +346,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task Exists_ReturnsTrue()
 	{
 		await Exec("CREATE TABLE `{ds}.ex1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.ex1` VALUES (1),(2),(3)");
+		await Exec("INSERT INTO `{ds}.ex1` (val) VALUES (1),(2),(3)");
 		Assert.Equal("True", await S("SELECT EXISTS(SELECT 1 FROM `{ds}.ex1` WHERE val > 2)"));
 	}
 
@@ -354,7 +354,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task Exists_ReturnsFalse()
 	{
 		await Exec("CREATE TABLE `{ds}.ex2` (val INT64)");
-		await Exec("INSERT INTO `{ds}.ex2` VALUES (1),(2),(3)");
+		await Exec("INSERT INTO `{ds}.ex2` (val) VALUES (1),(2),(3)");
 		Assert.Equal("False", await S("SELECT EXISTS(SELECT 1 FROM `{ds}.ex2` WHERE val > 10)"));
 	}
 
@@ -366,7 +366,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task Qualify_RowNumber()
 	{
 		await Exec("CREATE TABLE `{ds}.qf1` (grp STRING, val INT64)");
-		await Exec("INSERT INTO `{ds}.qf1` VALUES ('A',1),('A',2),('A',3),('B',10),('B',20)");
+		await Exec("INSERT INTO `{ds}.qf1` (grp, val) VALUES ('A',1),('A',2),('A',3),('B',10),('B',20)");
 		var rows = await Q(@"
 			SELECT grp, val FROM `{ds}.qf1`
 			QUALIFY ROW_NUMBER() OVER (PARTITION BY grp ORDER BY val DESC) = 1
@@ -436,7 +436,7 @@ public class ParityVerificationTests : IAsyncLifetime
 	public async Task MultipleAggregates()
 	{
 		await Exec("CREATE TABLE `{ds}.ma1` (val INT64)");
-		await Exec("INSERT INTO `{ds}.ma1` VALUES (1),(2),(3),(4),(5)");
+		await Exec("INSERT INTO `{ds}.ma1` (val) VALUES (1),(2),(3),(4),(5)");
 		var rows = await Q("SELECT COUNT(*) AS cnt, SUM(val) AS total, AVG(val) AS average, MIN(val) AS mn, MAX(val) AS mx FROM `{ds}.ma1`");
 		Assert.Single(rows);
 		Assert.Equal("5", rows[0]["cnt"]?.ToString());

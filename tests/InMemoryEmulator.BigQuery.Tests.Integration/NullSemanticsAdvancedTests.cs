@@ -23,7 +23,7 @@ public class NullSemanticsAdvancedTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.t` (id INT64, val INT64, name STRING, flag BOOL)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.t` (id, val, name, flag) VALUES
 			(1,10,'a',true),(2,NULL,'b',false),(3,30,NULL,true),
 			(4,NULL,NULL,NULL),(5,50,'e',true),(6,60,'f',false)", parameters: null);
 	}

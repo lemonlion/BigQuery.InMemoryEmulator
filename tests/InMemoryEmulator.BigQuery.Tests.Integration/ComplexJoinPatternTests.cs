@@ -23,16 +23,16 @@ public class ComplexJoinPatternTests : IAsyncLifetime
 		await _fixture.CreateDatasetAsync(_ds);
 		var c = await _fixture.GetClientAsync();
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.dept` (id INT64, name STRING, budget INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dept` VALUES (1,'Engineering',500000),(2,'Sales',300000),(3,'HR',200000),(4,'Marketing',250000)", parameters: null);
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.dept` (id, name, budget) VALUES (1,'Engineering',500000),(2,'Sales',300000),(3,'HR',200000),(4,'Marketing',250000)", parameters: null);
 
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.emp` (id INT64, name STRING, dept_id INT64, salary INT64, mgr_id INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.emp` (id, name, dept_id, salary, mgr_id) VALUES
 			(1,'Alice',1,90000,NULL),(2,'Bob',1,75000,1),(3,'Carol',2,70000,NULL),
 			(4,'Dave',2,65000,3),(5,'Eve',3,60000,NULL),(6,'Frank',1,85000,1),
 			(7,'Grace',2,72000,3),(8,'Hank',3,55000,5)", parameters: null);
 
 		await c.ExecuteQueryAsync($"CREATE TABLE `{_ds}.proj` (id INT64, name STRING, dept_id INT64, lead_id INT64)", parameters: null);
-		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.proj` VALUES
+		await c.ExecuteQueryAsync($@"INSERT INTO `{_ds}.proj` (id, name, dept_id, lead_id) VALUES
 			(1,'Alpha',1,1),(2,'Beta',1,2),(3,'Gamma',2,3),(4,'Delta',3,5),(5,'Epsilon',2,4)", parameters: null);
 	}
 

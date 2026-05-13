@@ -178,4 +178,92 @@ public class SqlParserTests
 		Assert.Null(select.From);
 		Assert.Equal(2, select.Columns.Count);
 	}
+
+	[Fact]
+	public void Parser_InsertWithColumnList_Parses()
+	{
+		var stmt = SqlParser.ParseSql("INSERT INTO `ds.bonus` (emp_id, amount, quarter) VALUES (1,5000,1),(2,3000,2)");
+		var insert = Assert.IsType<InsertValuesStatement>(stmt);
+		Assert.Equal("ds.bonus", insert.TableName);
+		Assert.NotNull(insert.Columns);
+		Assert.Equal(3, insert.Columns!.Count);
+		Assert.Equal("emp_id", insert.Columns[0]);
+		Assert.Equal("amount", insert.Columns[1]);
+		Assert.Equal("quarter", insert.Columns[2]);
+		Assert.Equal(2, insert.Rows.Count);
+	}
+
+	[Theory]
+	[InlineData("INSERT INTO `ds.t` (emp_id, quarter) VALUES (1,2)")]
+	[InlineData("INSERT INTO `ds.t` (quarter, emp_id) VALUES (1,2)")]
+	[InlineData("INSERT INTO `ds.t` (col1, day) VALUES (1,2)")]
+	[InlineData("INSERT INTO `ds.t` (col1, month, col2) VALUES (1,2,3)")]
+	[InlineData("INSERT INTO `ds.t` (year) VALUES (1)")]
+	[InlineData("INSERT INTO `ds.t` (col1, date) VALUES (1, '2024-01-01')")]
+	public void Parser_InsertWithDatePartColumnNames_Parses(string sql)
+	{
+		var stmt = SqlParser.ParseSql(sql);
+		Assert.IsType<InsertValuesStatement>(stmt);
+	}
+
+	[Fact]
+	public void Parser_InsertSelectWithDatePartColumnNames_Parses()
+	{
+		var stmt = SqlParser.ParseSql("INSERT INTO `ds.t` (col1, date) SELECT 1, '2024-01-01'");
+		Assert.IsType<InsertSelectStatement>(stmt);
+	}
+
+	[Theory]
+	[InlineData("SELECT DATE_DIFF(d1, d2, QUARTER)", "'QUARTER'")]
+	[InlineData("SELECT DATE_TRUNC(d, DAY)", "'DAY'")]
+	[InlineData("SELECT TIMESTAMP_ADD(ts, 1, MONTH)", "'MONTH'")]
+	public void NormalizeSql_DatePartsInFunctions_StillConverted(string sql, string expectedLiteral)
+	{
+		var normalized = SqlParser.NormalizeSql(sql);
+		Assert.Contains(expectedLiteral, normalized);
+	}
+
+	[Fact]
+	public void Parser_InsertNoColumnList_Parses()
+	{
+		var stmt = SqlParser.ParseSql("INSERT INTO `ds.bonus` VALUES (1,5000,1)");
+		Assert.IsType<InsertValuesStatement>(stmt);
+	}
+
+	[Fact]
+	public void Parser_InsertWithSimpleColumns_Parses()
+	{
+		var stmt = SqlParser.ParseSql("INSERT INTO `ds.t` (id, name, val) VALUES (1,'test',42)");
+		Assert.IsType<InsertValuesStatement>(stmt);
+	}
+
+	[Fact]
+	public void Parser_InsertWithUnderscoreColumn_Parses()
+	{
+		var stmt = SqlParser.ParseSql("INSERT INTO `ds.t` (emp_id) VALUES (1)");
+		Assert.IsType<InsertValuesStatement>(stmt);
+	}
+
+	[Fact]
+	public void Parser_InsertWithThreeColumns_Parses()
+	{
+		var stmt = SqlParser.ParseSql("INSERT INTO `ds.t` (a, b, c) VALUES (1,2,3)");
+		Assert.IsType<InsertValuesStatement>(stmt);
+	}
+
+	[Theory]
+	[InlineData("INSERT INTO `ds.t` (amount) VALUES (1)")]
+	[InlineData("INSERT INTO `ds.t` (quarter) VALUES (1)")]
+	[InlineData("INSERT INTO `ds.t` (emp_id, amount) VALUES (1,2)")]
+	[InlineData("INSERT INTO `ds.t` (emp_id, quarter) VALUES (1,2)")]
+	[InlineData("INSERT INTO `ds.t` (a, b) VALUES (1,2),(3,4)")]
+	[InlineData("INSERT INTO `ds.bonus` (emp_id, amount, quarter) VALUES (1,5000,1)")]
+	[InlineData("INSERT INTO bonus (emp_id, amount, quarter) VALUES (1,5000,1)")]
+	[InlineData("INSERT INTO `ds.bonus` (a, amount, quarter) VALUES (1,5000,1)")]
+	[InlineData("INSERT INTO `ds.bonus` (emp_id, amount, quarter) VALUES (1,5000,1),(2,3000,2)")]
+	public void Parser_InsertVariations_Parses(string sql)
+	{
+		var stmt = SqlParser.ParseSql(sql);
+		Assert.IsType<InsertValuesStatement>(stmt);
+	}
 }
